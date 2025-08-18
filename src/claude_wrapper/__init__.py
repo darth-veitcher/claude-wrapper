@@ -24,3 +24,4 @@ __all__ = [
     "ClaudeTimeoutError",
     "ClaudeExecutionError",
 ]
+# Claude Wrapper - Testing TestPyPI workflow fix
