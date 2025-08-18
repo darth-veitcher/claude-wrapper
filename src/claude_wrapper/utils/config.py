@@ -26,7 +26,7 @@ class Config(BaseSettings):
     # API server settings
     api_key: str | None = Field(default=None, description="API key for server authentication")
     api_base_url: str = Field(default="http://localhost:8000", description="API base URL")
-    api_model: str = Field(default="claude-3-opus-20240229", description="Default model name")
+    api_model: str = Field(default="sonnet", description="Default model name")
 
     # Session settings
     session_storage_dir: Path | None = Field(default=None, description="Session storage directory")

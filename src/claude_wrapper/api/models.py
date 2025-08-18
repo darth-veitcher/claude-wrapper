@@ -18,7 +18,7 @@ class Message(BaseModel):
 class ChatCompletionRequest(BaseModel):
     """OpenAI-compatible chat completion request."""
 
-    model: str = Field(default="claude-3-opus-20240229")
+    model: str = Field(default="sonnet")
     messages: list[Message]
     temperature: float | None = Field(default=1.0, ge=0.0, le=2.0)
     top_p: float | None = Field(default=1.0, ge=0.0, le=1.0)
@@ -96,7 +96,7 @@ class ChatCompletionStreamResponse(BaseModel):
 class CompletionRequest(BaseModel):
     """OpenAI-compatible completion request."""
 
-    model: str = Field(default="claude-3-opus-20240229")
+    model: str = Field(default="sonnet")
     prompt: str | list[str]
     suffix: str | None = None
     max_tokens: int | None = Field(default=16, ge=1)
