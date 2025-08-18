@@ -7,7 +7,7 @@ from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class Config(BaseSettings):  # type: ignore[misc]
+class Config(BaseSettings):
     """Configuration settings for Claude Wrapper."""
 
     model_config = SettingsConfigDict(
