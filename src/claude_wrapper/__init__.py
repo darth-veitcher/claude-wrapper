@@ -1,4 +1,8 @@
-"""Claude Wrapper - A simple Python wrapper for Claude CLI."""
+"""Claude Wrapper - A simple Python wrapper for Claude CLI.
+
+This package provides a convenient interface to the Claude CLI tool,
+enabling programmatic access to Claude's capabilities.
+"""
 
 __version__ = "0.1.0"
 __author__ = "Claude Wrapper Contributors"
