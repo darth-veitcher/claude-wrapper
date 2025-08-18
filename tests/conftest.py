@@ -3,10 +3,10 @@
 import asyncio
 import json
 import tempfile
-from datetime import datetime
+from collections.abc import Generator
 from pathlib import Path
-from typing import Any, AsyncGenerator, Dict, Generator, List, Optional
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from typing import Any
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 import pytest_asyncio
@@ -14,9 +14,7 @@ from faker import Faker
 from freezegun import freeze_time
 
 from claude_wrapper.core import ClaudeClient
-from claude_wrapper.core.exceptions import ClaudeWrapperError
 from claude_wrapper.utils.config import Config
-
 
 # Initialize Faker for test data generation
 fake = Faker()
@@ -91,7 +89,7 @@ async def claude_client(mock_config: Config) -> ClaudeClient:
 
 
 @pytest.fixture
-def sample_messages() -> List[Dict[str, str]]:
+def sample_messages() -> list[dict[str, str]]:
     """Create sample chat messages."""
     return [
         {"role": "system", "content": "You are a helpful assistant"},
@@ -102,7 +100,7 @@ def sample_messages() -> List[Dict[str, str]]:
 
 
 @pytest.fixture
-def mock_openai_request() -> Dict[str, Any]:
+def mock_openai_request() -> dict[str, Any]:
     """Create a mock OpenAI-compatible request."""
     return {
         "model": "sonnet",
@@ -164,6 +162,7 @@ def mock_httpx_client():
 def cli_runner():
     """Create a Typer test runner."""
     from typer.testing import CliRunner
+
     return CliRunner()
 
 
@@ -183,17 +182,17 @@ def pytest_configure(config):
 # Test helpers
 class MockProcess:
     """Mock process for subprocess testing."""
-    
+
     def __init__(self, stdout: bytes = b"", stderr: bytes = b"", returncode: int = 0):
         self.stdout = AsyncMock()
         self.stderr = AsyncMock()
         self.returncode = returncode
         self._stdout = stdout
         self._stderr = stderr
-        
+
     async def communicate(self):
         return self._stdout, self._stderr
-        
+
     async def wait(self):
         return self.returncode
 

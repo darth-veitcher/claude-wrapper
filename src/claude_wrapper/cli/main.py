@@ -1,15 +1,11 @@
 """Simple CLI wrapper for Claude."""
 
 import asyncio
-import sys
-from typing import Optional
-from pathlib import Path
 
 import typer
-from rich import print as rprint
 from rich.console import Console
-from rich.panel import Panel
 from rich.markdown import Markdown
+from rich.panel import Panel
 
 from claude_wrapper.core import ClaudeClient
 from claude_wrapper.core.exceptions import ClaudeWrapperError
@@ -41,11 +37,11 @@ def chat(
     stream: bool = typer.Option(False, "--stream", help="Stream the response"),
 ):
     """Send a message to Claude and get a response."""
-    
+
     async def _chat():
         try:
             client = get_client()
-            
+
             if stream:
                 # Streaming response
                 full_response = []
@@ -57,17 +53,17 @@ def chat(
                 # Regular response
                 with console.status("[bold cyan]Thinking...", spinner="dots"):
                     response = await client.chat(message)
-                
+
                 # Display response in a nice panel
                 console.print(Panel(Markdown(response), title="Claude's Response", expand=False))
-                
+
         except ClaudeWrapperError as e:
             console.print(f"[red]Error: {e.message}[/red]")
             raise typer.Exit(1)
         except Exception as e:
             console.print(f"[red]Unexpected error: {str(e)}[/red]")
             raise typer.Exit(1)
-    
+
     asyncio.run(_chat())
 
 
@@ -79,8 +75,9 @@ def server(
 ):
     """Start the OpenAI-compatible API server."""
     console.print(f"[cyan]Starting API server on {host}:{port}...[/cyan]")
-    
+
     import uvicorn
+
     uvicorn.run(
         "claude_wrapper.api.server:app",
         host=host,
@@ -93,9 +90,9 @@ def server(
 def version():
     """Show version information."""
     from claude_wrapper import __version__
-    
+
     console.print(f"[cyan]Claude Wrapper[/cyan] v{__version__}")
-    
+
     # Check Claude CLI version
     try:
         client = get_client()

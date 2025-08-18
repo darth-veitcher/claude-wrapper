@@ -1,0 +1,145 @@
+name: Release to TestPyPI
+
+on:
+  push:
+    branches: [ develop ]
+    paths:
+      - 'src/**'
+      - 'pyproject.toml'
+      - 'uv.lock'
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        enable-cache: true
+
+    - name: Set up Python
+      run: uv python install 3.12
+
+    - name: Install dependencies
+      run: uv sync --all-extras --dev
+
+    - name: Run tests
+      run: |
+        uv run pytest tests/ -v
+        uv run ruff check .
+        uv run ruff format --check .
+
+  test-release:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop'
+    
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/claude-wrapper
+    
+    permissions:
+      id-token: write  # IMPORTANT: this permission is mandatory for trusted publishing
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+
+    - name: Set up Python
+      run: uv python install 3.12
+
+    - name: Install dependencies
+      run: uv sync --dev
+
+    - name: Generate development version
+      id: dev-version
+      run: |
+        # Get base version from pyproject.toml
+        BASE_VERSION=$(uv run python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
+        
+        # Generate unique dev version with timestamp and commit hash
+        TIMESTAMP=$(date +%Y%m%d%H%M%S)
+        SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-8)
+        DEV_VERSION="${BASE_VERSION}.dev${TIMESTAMP}+${SHORT_SHA}"
+        
+        echo "dev_version=$DEV_VERSION" >> $GITHUB_OUTPUT
+        echo "Generated development version: $DEV_VERSION"
+        
+        # Update pyproject.toml with dev version
+        uv run python -c "
+import tomllib
+import tomli_w
+
+with open('pyproject.toml', 'rb') as f:
+    data = tomllib.load(f)
+
+data['project']['version'] = '${DEV_VERSION}'
+
+with open('pyproject.toml', 'wb') as f:
+    tomli_w.dump(data, f)
+"
+
+    - name: Build package
+      run: uv build
+
+    - name: Publish to TestPyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        repository-url: https://test.pypi.org/legacy/
+        verbose: true
+        print-hash: true
+
+    - name: Test installation from TestPyPI
+      run: |
+        # Wait a bit for TestPyPI to process the upload
+        sleep 30
+        
+        # Create a fresh virtual environment and test installation
+        python -m venv test_env
+        source test_env/bin/activate
+        
+        # Install from TestPyPI with a timeout and allow pre-releases
+        pip install --index-url https://test.pypi.org/simple/ \
+                   --extra-index-url https://pypi.org/simple/ \
+                   --pre \
+                   --timeout 300 \
+                   claude-wrapper==${{ steps.dev-version.outputs.dev_version }}
+        
+        # Basic smoke test
+        python -c "from claude_wrapper import ClaudeClient; print('✓ Import successful')"
+        
+        # Test CLI (basic help command)
+        claude-wrapper --help
+        
+        echo "✓ TestPyPI installation and basic functionality verified"
+
+    - name: Create development release comment
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const devVersion = '${{ steps.dev-version.outputs.dev_version }}';
+          const testPypiUrl = `https://test.pypi.org/project/claude-wrapper/${devVersion}/`;
+          
+          github.rest.repos.createCommitComment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            commit_sha: context.sha,
+            body: `🚀 **Development release published to TestPyPI**
+            
+**Version:** \`${devVersion}\`
+**TestPyPI:** ${testPypiUrl}
+
+**Install for testing:**
+\`\`\`bash
+pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ --pre claude-wrapper==${devVersion}
+\`\`\`
+
+*This is an automated development release from the develop branch.*`
+          });

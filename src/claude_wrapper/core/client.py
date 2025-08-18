@@ -1,23 +1,22 @@
 """Simple async client for Claude CLI wrapper."""
 
 import asyncio
-import json
 import shutil
-from pathlib import Path
-from typing import Optional, Dict, Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 
 from .exceptions import (
-    ClaudeWrapperError,
-    ClaudeNotFoundError,
     ClaudeAuthError,
-    ClaudeTimeoutError,
     ClaudeExecutionError,
+    ClaudeNotFoundError,
+    ClaudeTimeoutError,
+    ClaudeWrapperError,
 )
 
 
 class ClaudeClient:
     """Simple async client for interacting with Claude CLI."""
-    
+
     def __init__(
         self,
         claude_path: str = "claude",
@@ -25,7 +24,7 @@ class ClaudeClient:
         retry_attempts: int = 3,
     ):
         """Initialize Claude client.
-        
+
         Args:
             claude_path: Path to Claude CLI executable
             timeout: Command timeout in seconds
@@ -35,13 +34,13 @@ class ClaudeClient:
         self.timeout = timeout
         self.retry_attempts = retry_attempts
         self._claude_available = None
-    
+
     async def check_auth(self) -> bool:
         """Check if Claude CLI is installed and authenticated.
-        
+
         Returns:
             True if Claude is ready to use
-            
+
         Raises:
             ClaudeNotFoundError: If Claude CLI is not found
             ClaudeAuthError: If Claude is not authenticated
@@ -49,7 +48,7 @@ class ClaudeClient:
         # Check if Claude CLI exists
         if not shutil.which(self.claude_path):
             raise ClaudeNotFoundError(f"Claude CLI not found at {self.claude_path}")
-        
+
         # Try a simple command to check auth
         try:
             process = await asyncio.create_subprocess_exec(
@@ -58,73 +57,72 @@ class ClaudeClient:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            
-            stdout, stderr = await asyncio.wait_for(
-                process.communicate(),
-                timeout=10.0
-            )
-            
+
+            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=10.0)
+
             if process.returncode != 0:
                 error_msg = stderr.decode() if stderr else "Unknown error"
                 if "not authenticated" in error_msg.lower() or "auth" in error_msg.lower():
-                    raise ClaudeAuthError("Claude CLI is not authenticated. Run 'claude auth' first.")
+                    raise ClaudeAuthError(
+                        "Claude CLI is not authenticated. Run 'claude auth' first."
+                    )
                 raise ClaudeExecutionError(f"Claude check failed: {error_msg}")
-            
+
             self._claude_available = True
             return True
-            
+
         except asyncio.TimeoutError:
             raise ClaudeTimeoutError("Claude auth check timed out")
         except Exception as e:
             if isinstance(e, ClaudeWrapperError):
                 raise
             raise ClaudeExecutionError(f"Failed to check Claude auth: {str(e)}")
-    
+
     async def _execute_claude(
         self,
         args: list[str],
-        input_text: Optional[str] = None,
+        input_text: str | None = None,
     ) -> str:
         """Execute a Claude CLI command.
-        
+
         Args:
             args: Command arguments
             input_text: Optional input to pipe to the command
-            
+
         Returns:
             Command output
-            
+
         Raises:
             ClaudeWrapperError: On execution failure
         """
         if self._claude_available is None:
             await self.check_auth()
-        
+
         for attempt in range(self.retry_attempts):
             try:
                 cmd = [self.claude_path] + args
-                
+
                 process = await asyncio.create_subprocess_exec(
                     *cmd,
                     stdin=asyncio.subprocess.PIPE if input_text else None,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                 )
-                
+
                 stdout, stderr = await asyncio.wait_for(
                     process.communicate(input_text.encode() if input_text else None),
-                    timeout=self.timeout
+                    timeout=self.timeout,
                 )
-                
+
                 if process.returncode != 0:
                     error_msg = stderr.decode() if stderr else "Unknown error"
                     if attempt < self.retry_attempts - 1:
-                        await asyncio.sleep(2 ** attempt)  # Exponential backoff
+                        await asyncio.sleep(2**attempt)  # Exponential backoff
                         continue
                     raise ClaudeExecutionError(f"Claude command failed: {error_msg}")
-                
+
                 return stdout.decode()
-                
+
             except asyncio.TimeoutError:
                 if attempt < self.retry_attempts - 1:
                     continue
@@ -133,36 +131,36 @@ class ClaudeClient:
                 if isinstance(e, ClaudeWrapperError):
                     raise
                 if attempt < self.retry_attempts - 1:
-                    await asyncio.sleep(2 ** attempt)
+                    await asyncio.sleep(2**attempt)
                     continue
                 raise ClaudeExecutionError(f"Failed to execute Claude command: {str(e)}")
-    
+
     async def chat(self, message: str) -> str:
         """Send a message to Claude and get a response.
-        
+
         Args:
             message: The message to send
-            
+
         Returns:
             Claude's response
         """
         # Use -p flag for prompt
         response = await self._execute_claude(["-p", message])
         return response.strip()
-    
+
     async def stream_chat(self, message: str) -> AsyncIterator[str]:
         """Stream a response from Claude.
-        
+
         Args:
             message: The message to send
-            
+
         Yields:
             Response chunks as they arrive
         """
         # Note: Claude CLI doesn't support true streaming, so we simulate it
         # by yielding the response in chunks
         response = await self.chat(message)
-        
+
         # Simulate streaming by yielding words
         words = response.split()
         for i, word in enumerate(words):
@@ -170,35 +168,35 @@ class ClaudeClient:
                 yield " "
             yield word
             await asyncio.sleep(0.01)  # Small delay to simulate streaming
-    
+
     async def complete(
         self,
         prompt: str,
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
-        stop_sequences: Optional[list[str]] = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+        stop_sequences: list[str] | None = None,
     ) -> str:
         """Get a completion from Claude.
-        
+
         Args:
             prompt: The prompt to complete
             max_tokens: Maximum tokens in response (not supported by CLI)
             temperature: Temperature for sampling (not supported by CLI)
             stop_sequences: Sequences to stop generation (not supported by CLI)
-            
+
         Returns:
             The completion
         """
         # Claude CLI doesn't support these parameters directly,
         # so we just pass the prompt
         return await self.chat(prompt)
-    
-    async def count_tokens(self, text: str) -> Dict[str, Any]:
+
+    async def count_tokens(self, text: str) -> dict[str, Any]:
         """Count tokens in text.
-        
+
         Args:
             text: Text to count tokens for
-            
+
         Returns:
             Token count information
         """
@@ -206,9 +204,9 @@ class ClaudeClient:
         # Rough estimate: 1 token ≈ 4 characters
         char_count = len(text)
         estimated_tokens = char_count // 4
-        
+
         return {
             "tokens": estimated_tokens,
             "characters": char_count,
-            "note": "This is an approximation"
+            "note": "This is an approximation",
         }

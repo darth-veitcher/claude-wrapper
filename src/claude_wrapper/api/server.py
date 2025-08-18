@@ -1,38 +1,30 @@
 """FastAPI server with OpenAI-compatible endpoints."""
 
-import asyncio
-import json
 import time
-from typing import Optional, AsyncGenerator, Dict, Any
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Header, Depends, Request
-from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sse_starlette.sse import EventSourceResponse
 
 from claude_wrapper.api.models import (
     ChatCompletionRequest,
     ChatCompletionResponse,
-    ChatCompletionStreamResponse,
+    Choice,
+    CompletionChoice,
     CompletionRequest,
     CompletionResponse,
-    ErrorResponse,
-    ErrorDetail,
     Message,
-    Choice,
-    StreamChoice,
-    Delta,
-    Usage,
-    ModelList,
     Model,
-    CompletionChoice,
+    ModelList,
+    Usage,
 )
 from claude_wrapper.core import ClaudeClient
 from claude_wrapper.core.exceptions import ClaudeWrapperError
 from claude_wrapper.utils.config import get_config
 from claude_wrapper.utils.streaming import StreamProcessor
-
 
 # Global instances
 config = get_config()
@@ -55,9 +47,9 @@ async def lifespan(app: FastAPI):
         print("✓ Claude CLI authenticated")
     except Exception as e:
         print(f"⚠ Claude CLI not authenticated: {e}")
-    
+
     yield
-    
+
     # Shutdown
     print("Shutting down Claude Wrapper API server...")
 
@@ -79,23 +71,23 @@ app.add_middleware(
 )
 
 
-async def verify_api_key(authorization: Optional[str] = Header(None)) -> bool:
+async def verify_api_key(authorization: str | None = Header(None)) -> bool:
     """Verify API key if configured."""
     if not config.api_key:
         return True  # No API key required
-    
+
     if not authorization:
         raise HTTPException(status_code=401, detail="Authorization header required")
-    
+
     # Extract token from "Bearer <token>" format
     if authorization.startswith("Bearer "):
         token = authorization[7:]
     else:
         token = authorization
-    
+
     if token != config.api_key:
         raise HTTPException(status_code=401, detail="Invalid API key")
-    
+
     return True
 
 
@@ -109,7 +101,7 @@ async def root():
             "chat": "/v1/chat/completions",
             "completions": "/v1/completions",
             "models": "/v1/models",
-        }
+        },
     }
 
 
@@ -123,10 +115,7 @@ async def health():
             "claude_cli": "authenticated" if authenticated else "not authenticated",
         }
     except Exception as e:
-        return JSONResponse(
-            status_code=503,
-            content={"status": "unhealthy", "error": str(e)}
-        )
+        return JSONResponse(status_code=503, content={"status": "unhealthy", "error": str(e)})
 
 
 @app.get("/v1/models", dependencies=[Depends(verify_api_key)])
@@ -152,29 +141,29 @@ async def list_models() -> ModelList:
             root="haiku",
         ),
     ]
-    
+
     return ModelList(data=models)
 
 
 @app.post("/v1/chat/completions", dependencies=[Depends(verify_api_key)])
 async def chat_completions(request: ChatCompletionRequest):
     """OpenAI-compatible chat completions endpoint."""
-    
+
     try:
         # Extract messages
         system_prompt = None
         user_message = ""
-        
+
         for msg in request.messages:
             if msg.role == "system":
                 system_prompt = msg.content
             elif msg.role == "user":
                 user_message = msg.content
             # For multi-turn, we'd need to handle this better
-        
+
         if not user_message:
             raise HTTPException(status_code=400, detail="No user message found")
-        
+
         # Handle streaming
         if request.stream:
             return EventSourceResponse(
@@ -186,14 +175,14 @@ async def chat_completions(request: ChatCompletionRequest):
                     request.model,
                 )
             )
-        
+
         # Non-streaming response
         response_text = await claude_client.chat(message=user_message)
-        
+
         # Count tokens (simplified)
         prompt_tokens = sum(len(msg.content.split()) for msg in request.messages)
         completion_tokens = len(response_text.split())
-        
+
         return ChatCompletionResponse(
             model=request.model,
             choices=[
@@ -209,7 +198,7 @@ async def chat_completions(request: ChatCompletionRequest):
                 total_tokens=prompt_tokens + completion_tokens,
             ),
         )
-        
+
     except ClaudeWrapperError as e:
         raise HTTPException(status_code=500, detail=str(e))
     except Exception as e:
@@ -218,24 +207,24 @@ async def chat_completions(request: ChatCompletionRequest):
 
 async def stream_chat_response(
     message: str,
-    max_tokens: Optional[int],
-    temperature: Optional[float],
-    system_prompt: Optional[str],
+    max_tokens: int | None,
+    temperature: float | None,
+    system_prompt: str | None,
     model: str,
 ) -> AsyncGenerator[str, None]:
     """Stream chat response as Server-Sent Events."""
-    
+
     try:
         # Start streaming from Claude
         stream = claude_client.stream_chat(message=message)
-        
+
         # Send initial chunk with role
         initial_chunk = stream_processor.create_openai_stream_chunk(
             role="assistant",
             model=model,
         )
         yield stream_processor.format_sse(initial_chunk)
-        
+
         # Stream content chunks
         async for chunk in stream:
             content_chunk = stream_processor.create_openai_stream_chunk(
@@ -243,17 +232,17 @@ async def stream_chat_response(
                 model=model,
             )
             yield stream_processor.format_sse(content_chunk)
-        
+
         # Send final chunk with finish reason
         final_chunk = stream_processor.create_openai_stream_chunk(
             finish_reason="stop",
             model=model,
         )
         yield stream_processor.format_sse(final_chunk)
-        
+
         # Send [DONE] marker
         yield stream_processor.format_sse("[DONE]")
-        
+
     except Exception as e:
         error_chunk = {
             "error": {
@@ -267,26 +256,30 @@ async def stream_chat_response(
 @app.post("/v1/completions", dependencies=[Depends(verify_api_key)])
 async def completions(request: CompletionRequest):
     """OpenAI-compatible completions endpoint."""
-    
+
     try:
         # Handle prompt as string or list
         if isinstance(request.prompt, list):
             prompt = "\n".join(request.prompt)
         else:
             prompt = request.prompt
-        
+
         # Get completion
         response_text = await claude_client.complete(
             prompt=prompt,
             max_tokens=request.max_tokens,
             temperature=request.temperature,
-            stop_sequences=request.stop if isinstance(request.stop, list) else [request.stop] if request.stop else None,
+            stop_sequences=request.stop
+            if isinstance(request.stop, list)
+            else [request.stop]
+            if request.stop
+            else None,
         )
-        
+
         # Count tokens (simplified)
         prompt_tokens = len(prompt.split())
         completion_tokens = len(response_text.split())
-        
+
         return CompletionResponse(
             model=request.model,
             choices=[
@@ -302,7 +295,7 @@ async def completions(request: CompletionRequest):
                 total_tokens=prompt_tokens + completion_tokens,
             ),
         )
-        
+
     except ClaudeWrapperError as e:
         raise HTTPException(status_code=500, detail=str(e))
     except Exception as e:
@@ -320,13 +313,14 @@ async def claude_wrapper_exception_handler(request: Request, exc: ClaudeWrapperE
                 "type": "claude_wrapper_error",
                 "details": None,
             }
-        }
+        },
     )
 
 
 def main():
     """Main entry point for the API server."""
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)
 
 

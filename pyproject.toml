@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "claude-wrapper"
 version = "0.1.0"
-description = "A sophisticated Python wrapper for Claude Code CLI with Typer interface and OpenAI-compatible API"
+description = "A simple Python wrapper for Claude CLI with streaming support and OpenAI-compatible API interface"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
@@ -59,6 +59,9 @@ dev = [
     "freezegun>=1.2.0",
     "respx>=0.20.0",
     "openai>=1.99.9",
+    "pip-audit>=2.6.0",
+    "bandit>=1.7.0",
+    "tomli-w>=1.0.0",
 ]
 
 test = [
@@ -90,6 +93,10 @@ packages = ["src/claude_wrapper"]
 [tool.ruff]
 target-version = "py310"
 line-length = 100
+include = ["src/**/*.py", "tests/**/*.py"]
+exclude = [".devcontainer/**", ".venv/**", "__pycache__/**"]
+
+[tool.ruff.lint]
 select = [
     "E",   # pycodestyle errors
     "W",   # pycodestyle warnings
@@ -191,4 +198,12 @@ exclude_lines = [
     "if TYPE_CHECKING:",
     "class .*\\bProtocol\\):",
     "@(abc\\.)?abstractmethod",
+]
+
+[dependency-groups]
+dev = [
+    "bandit>=1.8.6",
+    "pip-audit>=2.9.0",
+    "ruff>=0.12.9",
+    "tomli-w>=1.2.0",
 ]
