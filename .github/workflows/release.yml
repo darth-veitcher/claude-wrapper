@@ -93,12 +93,10 @@ jobs:
 
     - name: Create GitHub Release
       if: steps.version-check.outputs.should_release == 'true'
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: softprops/action-gh-release@v2
       with:
         tag_name: v${{ steps.version-check.outputs.current_version }}
-        release_name: Release v${{ steps.version-check.outputs.current_version }}
+        name: Release v${{ steps.version-check.outputs.current_version }}
         body: |
           ## Changes
 
@@ -109,5 +107,10 @@ jobs:
           ```bash
           pip install claude-wrapper==${{ steps.version-check.outputs.current_version }}
           ```
+
+          ## PyPI
+
+          https://pypi.org/project/claude-wrapper/${{ steps.version-check.outputs.current_version }}/
         draft: false
         prerelease: false
+        files: dist/*
