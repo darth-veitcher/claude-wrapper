@@ -24,4 +24,3 @@ __all__ = [
     "ClaudeTimeoutError",
     "ClaudeExecutionError",
 ]
-# Claude Wrapper - Test publishing pipeline

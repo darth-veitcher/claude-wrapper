@@ -11,7 +11,10 @@
       "Bash(gh run list:*)",
       "Bash(gh auth:*)",
       "Bash(gh run view:*)",
-      "Bash(gh:*)"
+      "Bash(gh:*)",
+      "Bash(gh api:*)",
+      "Bash(gh workflow run:*)",
+      "Bash(gh run watch:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
