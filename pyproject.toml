@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
 name = "claude-wrapper"
-version = "0.1.0"
+dynamic = ["version"]
 description = "A simple Python wrapper for Claude CLI with streaming support and OpenAI-compatible API interface"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -85,6 +85,12 @@ Homepage = "https://github.com/claude-wrapper/claude-wrapper"
 Documentation = "https://github.com/claude-wrapper/claude-wrapper#readme"
 Repository = "https://github.com/claude-wrapper/claude-wrapper"
 Issues = "https://github.com/claude-wrapper/claude-wrapper/issues"
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.version.raw-options]
+local_scheme = "no-local-version"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/claude_wrapper"]

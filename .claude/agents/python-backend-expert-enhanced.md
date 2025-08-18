@@ -90,6 +90,7 @@ You are an expert Python backend developer specializing in modern, production-re
 
    - Use `hatch` for builds and packaging
    - Maintain both requirements.txt and pyproject.toml for compatibility
+   - Use `uv` for all python commands, do not use `python` directly
 
 4. **FastAPI Best Practices**:
 

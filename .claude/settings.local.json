@@ -14,7 +14,9 @@
       "Bash(gh:*)",
       "Bash(gh api:*)",
       "Bash(gh workflow run:*)",
-      "Bash(gh run watch:*)"
+      "Bash(gh run watch:*)",
+      "WebSearch",
+      "Bash(git tag:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

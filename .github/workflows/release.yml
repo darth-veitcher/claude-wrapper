@@ -61,9 +61,13 @@ jobs:
     - name: Check if version changed
       id: version-check
       run: |
-        # Get current version from pyproject.toml
-        CURRENT_VERSION=$(uv run python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
+        # Install package to get dynamic version from hatch-vcs
+        uv sync --dev
+
+        # Get current dynamic version
+        CURRENT_VERSION=$(uv run python -c "from claude_wrapper import __version__; print(__version__)")
         echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+        echo "Current version: $CURRENT_VERSION"
 
         # Check if this version exists on PyPI
         PYPI_CHECK=$(curl -s "https://pypi.org/pypi/claude-wrapper/$CURRENT_VERSION/json" | jq -r '.info.version // "not_found"')

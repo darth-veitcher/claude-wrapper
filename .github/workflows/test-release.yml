@@ -61,36 +61,28 @@ jobs:
     - name: Generate development version
       id: dev-version
       run: |
-        # Get base version from pyproject.toml
-        BASE_VERSION=$(uv run python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
+        # Install the package in development mode to get dynamic version
+        uv sync --dev
 
-        # Generate unique dev version with timestamp and commit hash
-        TIMESTAMP=$(date +%Y%m%d%H%M%S)
-        SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-8)
-        DEV_VERSION="${BASE_VERSION}.dev${TIMESTAMP}+${SHORT_SHA}"
+        # Get the current dynamic version from hatch-vcs
+        CURRENT_VERSION=$(uv run python -c "from claude_wrapper import __version__; print(__version__)")
+        echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+        echo "Current dynamic version: $CURRENT_VERSION"
+
+        # For TestPyPI, we want to ensure each push gets a unique version
+        # The dynamic version already includes dev info from hatch-vcs
+        # If it's already a dev version, we're good. If not, make it a dev version.
+        if [[ "$CURRENT_VERSION" == *"dev"* ]]; then
+          DEV_VERSION="$CURRENT_VERSION"
+        else
+          # Add dev suffix with timestamp and commit hash for uniqueness
+          TIMESTAMP=$(date +%Y%m%d%H%M%S)
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-8)
+          DEV_VERSION="${CURRENT_VERSION}.dev${TIMESTAMP}+${SHORT_SHA}"
+        fi
 
         echo "dev_version=$DEV_VERSION" >> $GITHUB_OUTPUT
-        echo "Generated development version: $DEV_VERSION"
-
-        # Update pyproject.toml with dev version
-        cat > update_version.py << 'EOF'
-        import tomllib
-        import tomli_w
-        import os
-
-        dev_version = os.environ['DEV_VERSION']
-
-        with open('pyproject.toml', 'rb') as f:
-            data = tomllib.load(f)
-
-        data['project']['version'] = dev_version
-
-        with open('pyproject.toml', 'wb') as f:
-            tomli_w.dump(data, f)
-        EOF
-
-        DEV_VERSION="${DEV_VERSION}" uv run python update_version.py
-        rm update_version.py
+        echo "Final development version: $DEV_VERSION"
 
     - name: Build package
       run: uv build

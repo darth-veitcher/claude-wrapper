@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sse_starlette.sse import EventSourceResponse
 
+from claude_wrapper import get_version
 from claude_wrapper.api.models import (
     ChatCompletionRequest,
     ChatCompletionResponse,
@@ -58,7 +59,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
 app = FastAPI(
     title="Claude Wrapper API",
     description="OpenAI-compatible API wrapper for Claude CLI",
-    version="0.1.0",
+    version=get_version(),
     lifespan=lifespan,
 )
 
@@ -94,7 +95,7 @@ async def root() -> dict[str, Any]:
     """Root endpoint."""
     return {
         "message": "Claude Wrapper API",
-        "version": "0.1.0",
+        "version": get_version(),
         "endpoints": {
             "chat": "/v1/chat/completions",
             "completions": "/v1/completions",
