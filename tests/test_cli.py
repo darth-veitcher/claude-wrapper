@@ -159,6 +159,8 @@ class TestCLICommands:
 
         assert result.exit_code == 0
         assert "Start the OpenAI-compatible API server" in result.output
-        assert "--host" in result.output
-        assert "--port" in result.output
-        assert "--reload" in result.output
+        # Strip ANSI color codes for reliable string matching
+        clean_output = re.sub(r"\x1b\[[0-9;]*m", "", result.output)
+        assert "--host" in clean_output
+        assert "--port" in clean_output
+        assert "--reload" in clean_output
