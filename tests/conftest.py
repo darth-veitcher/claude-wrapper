@@ -36,7 +36,7 @@ def temp_dir() -> Generator[Path, None, None]:
 
 
 @pytest.fixture
-def mock_config(temp_dir: Path) -> Config:
+def mock_config(_temp_dir: Path) -> Config:
     """Create a mock configuration."""
     return Config(
         claude_path="/usr/bin/claude",
@@ -75,14 +75,13 @@ def mock_subprocess_error():
 @pytest_asyncio.fixture
 async def claude_client(mock_config: Config) -> ClaudeClient:
     """Create a ClaudeClient instance."""
-    with patch("shutil.which", return_value="/usr/bin/claude"):
-        with patch("subprocess.run") as mock_run:
-            mock_run.return_value.returncode = 0
-            return ClaudeClient(
-                claude_path=mock_config.claude_path,
-                timeout=mock_config.timeout,
-                retry_attempts=mock_config.retry_attempts,
-            )
+    with patch("shutil.which", return_value="/usr/bin/claude"), patch("subprocess.run") as mock_run:
+        mock_run.return_value.returncode = 0
+        return ClaudeClient(
+            claude_path=mock_config.claude_path,
+            timeout=mock_config.timeout,
+            retry_attempts=mock_config.retry_attempts,
+        )
 
 
 # Removed sample_session fixture as sessions no longer exist
@@ -144,7 +143,10 @@ def mock_stream_chunks():
 @pytest.fixture(autouse=True)
 def reset_singletons():
     """Reset any singleton instances between tests."""
-    # Add any singleton resets here if needed
+    # Reset config singleton
+    import claude_wrapper.utils.config
+
+    claude_wrapper.utils.config._config_instance = None
     yield
 
 

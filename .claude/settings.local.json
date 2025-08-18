@@ -6,7 +6,8 @@
       "Bash(uv sync --extra test)",
       "Bash(uv:*)",
       "Bash(claude:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(pre-commit run:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

@@ -33,7 +33,7 @@ class ClaudeClient:
         self.claude_path = claude_path
         self.timeout = timeout
         self.retry_attempts = retry_attempts
-        self._claude_available = None
+        self._claude_available: bool | None = None
 
     async def check_auth(self) -> bool:
         """Check if Claude CLI is installed and authenticated.
@@ -71,12 +71,15 @@ class ClaudeClient:
             self._claude_available = True
             return True
 
-        except asyncio.TimeoutError:
-            raise ClaudeTimeoutError("Claude auth check timed out")
+        except asyncio.TimeoutError as e:
+            raise ClaudeTimeoutError("Claude auth check timed out") from e
         except Exception as e:
             if isinstance(e, ClaudeWrapperError):
                 raise
-            raise ClaudeExecutionError(f"Failed to check Claude auth: {str(e)}")
+            raise ClaudeExecutionError(f"Failed to check Claude auth: {str(e)}") from e
+
+        # This should never be reached, but satisfies mypy
+        return True
 
     async def _execute_claude(
         self,
@@ -123,17 +126,20 @@ class ClaudeClient:
 
                 return stdout.decode()
 
-            except asyncio.TimeoutError:
+            except asyncio.TimeoutError as e:
                 if attempt < self.retry_attempts - 1:
                     continue
-                raise ClaudeTimeoutError(f"Claude command timed out after {self.timeout}s")
+                raise ClaudeTimeoutError(f"Claude command timed out after {self.timeout}s") from e
             except Exception as e:
                 if isinstance(e, ClaudeWrapperError):
                     raise
                 if attempt < self.retry_attempts - 1:
                     await asyncio.sleep(2**attempt)
                     continue
-                raise ClaudeExecutionError(f"Failed to execute Claude command: {str(e)}")
+                raise ClaudeExecutionError(f"Failed to execute Claude command: {str(e)}") from e
+
+        # This should never be reached, but satisfies mypy
+        raise ClaudeExecutionError("Unexpected execution path")
 
     async def chat(self, message: str) -> str:
         """Send a message to Claude and get a response.
@@ -172,9 +178,9 @@ class ClaudeClient:
     async def complete(
         self,
         prompt: str,
-        max_tokens: int | None = None,
-        temperature: float | None = None,
-        stop_sequences: list[str] | None = None,
+        _max_tokens: int | None = None,
+        _temperature: float | None = None,
+        _stop_sequences: list[str] | None = None,
     ) -> str:
         """Get a completion from Claude.
 

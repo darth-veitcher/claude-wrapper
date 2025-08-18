@@ -52,7 +52,7 @@ class Environment(str, Enum):
 
 class BaseConfig(BaseSettings):
     """Base configuration with common settings and validators."""
-    
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
@@ -64,19 +64,19 @@ class BaseConfig(BaseSettings):
         # Use secrets directory for sensitive data
         secrets_dir="/run/secrets" if Path("/run/secrets").exists() else None,
     )
-    
+
     # Environment
     ENVIRONMENT: Environment = Field(
         default=Environment.LOCAL,
         description="Current environment"
     )
-    
+
     # Debugging
     DEBUG: bool = Field(
         default=False,
         description="Debug mode - NEVER true in production"
     )
-    
+
     @field_validator("DEBUG")
     @classmethod
     def validate_debug(cls, v: bool, info) -> bool:
@@ -85,11 +85,11 @@ class BaseConfig(BaseSettings):
         if env == Environment.PRODUCTION and v:
             raise ValueError("DEBUG cannot be True in production")
         return v
-    
+
     def is_production(self) -> bool:
         """Check if running in production."""
         return self.ENVIRONMENT == Environment.PRODUCTION
-    
+
     def is_testing(self) -> bool:
         """Check if running tests."""
         return self.ENVIRONMENT == Environment.TESTING
@@ -106,7 +106,7 @@ from .base import BaseConfig
 
 class AppConfig(BaseConfig):
     """Application-specific configuration."""
-    
+
     # Basic Info
     APP_NAME: str = Field(
         default="My FastAPI App",
@@ -116,7 +116,7 @@ class AppConfig(BaseConfig):
         default="0.1.0",
         description="Application version"
     )
-    
+
     # API Settings
     API_V1_PREFIX: str = Field(
         default="/api/v1",
@@ -126,7 +126,7 @@ class AppConfig(BaseConfig):
         default=True,
         description="Enable API documentation endpoints"
     )
-    
+
     @field_validator("API_DOCS_ENABLED")
     @classmethod
     def validate_api_docs(cls, v: bool, info) -> bool:
@@ -136,7 +136,7 @@ class AppConfig(BaseConfig):
             import warnings
             warnings.warn("API docs are enabled in production")
         return v
-    
+
     # CORS Settings
     CORS_ORIGINS: List[str] = Field(
         default=["http://localhost:3000", "http://localhost:8001"],
@@ -146,29 +146,29 @@ class AppConfig(BaseConfig):
         default=True,
         description="Allow credentials in CORS requests"
     )
-    
+
     # Server Settings
     HOST: str = Field(default="0.0.0.0", description="Server host")
     PORT: int = Field(default=8000, description="Server port")
     WORKERS: int = Field(default=1, description="Number of workers")
-    
+
     @field_validator("WORKERS")
     @classmethod
     def validate_workers(cls, v: int, info) -> int:
         """Auto-scale workers in production."""
         import multiprocessing
-        
+
         if info.data.get("ENVIRONMENT") == "production" and v == 1:
             # Default to CPU count in production
             return multiprocessing.cpu_count()
         return v
-    
+
     # External URLs
     FRONTEND_URL: Optional[HttpUrl] = Field(
         default=None,
         description="Frontend application URL"
     )
-    
+
     # Feature Flags
     FEATURE_REGISTRATION_ENABLED: bool = Field(
         default=True,
@@ -191,20 +191,20 @@ from .base import BaseConfig
 
 class DatabaseConfig(BaseConfig):
     """Database configuration with connection pooling."""
-    
+
     # Connection
     DATABASE_URL: PostgresDsn = Field(
         ...,  # Required field
         description="PostgreSQL connection URL"
     )
-    
+
     # Alternative connection parameters (if URL not provided)
     DB_HOST: Optional[str] = Field(default=None)
     DB_PORT: Optional[int] = Field(default=5432)
     DB_USER: Optional[str] = Field(default=None)
     DB_PASSWORD: Optional[SecretStr] = Field(default=None)
     DB_NAME: Optional[str] = Field(default=None)
-    
+
     # Connection Pool
     DB_POOL_SIZE: int = Field(
         default=20,
@@ -228,7 +228,7 @@ class DatabaseConfig(BaseConfig):
         ge=60,
         description="Recycle connections after N seconds"
     )
-    
+
     # Options
     DB_ECHO: bool = Field(
         default=False,
@@ -238,7 +238,7 @@ class DatabaseConfig(BaseConfig):
         default=False,
         description="Echo pool events (debug)"
     )
-    
+
     @field_validator("DB_ECHO", "DB_ECHO_POOL")
     @classmethod
     def validate_echo(cls, v: bool, info) -> bool:
@@ -246,7 +246,7 @@ class DatabaseConfig(BaseConfig):
         if info.data.get("ENVIRONMENT") == "production" and v:
             raise ValueError("Database echo cannot be enabled in production")
         return v
-    
+
     def get_async_database_url(self) -> str:
         """Convert to async PostgreSQL URL."""
         if self.DATABASE_URL:
@@ -272,7 +272,7 @@ from .base import BaseConfig
 
 class AuthConfig(BaseConfig):
     """Authentication and security configuration."""
-    
+
     # JWT Settings
     JWT_SECRET_KEY: SecretStr = Field(
         ...,
@@ -295,28 +295,28 @@ class AuthConfig(BaseConfig):
         le=30,
         description="Refresh token expiration (days)"
     )
-    
+
     # Password Policy
     PASSWORD_MIN_LENGTH: int = Field(default=8, ge=8)
     PASSWORD_REQUIRE_UPPERCASE: bool = Field(default=True)
     PASSWORD_REQUIRE_LOWERCASE: bool = Field(default=True)
     PASSWORD_REQUIRE_DIGIT: bool = Field(default=True)
     PASSWORD_REQUIRE_SPECIAL: bool = Field(default=True)
-    
+
     # OAuth2 (Optional)
     OAUTH2_ENABLED: bool = Field(default=False)
     GOOGLE_CLIENT_ID: Optional[str] = Field(default=None)
     GOOGLE_CLIENT_SECRET: Optional[SecretStr] = Field(default=None)
     GITHUB_CLIENT_ID: Optional[str] = Field(default=None)
     GITHUB_CLIENT_SECRET: Optional[SecretStr] = Field(default=None)
-    
+
     # Security Headers
     SECURE_HEADERS_ENABLED: bool = Field(default=True)
     ALLOWED_HOSTS: List[str] = Field(
         default=["*"],
         description="Allowed host headers"
     )
-    
+
     @field_validator("ALLOWED_HOSTS")
     @classmethod
     def validate_allowed_hosts(cls, v: List[str], info) -> List[str]:
@@ -324,11 +324,11 @@ class AuthConfig(BaseConfig):
         if info.data.get("ENVIRONMENT") == "production" and "*" in v:
             raise ValueError("Wildcard hosts not allowed in production")
         return v
-    
+
     def get_access_token_expire_timedelta(self) -> timedelta:
         """Get access token expiration as timedelta."""
         return timedelta(minutes=self.JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
-    
+
     def get_refresh_token_expire_timedelta(self) -> timedelta:
         """Get refresh token expiration as timedelta."""
         return timedelta(days=self.JWT_REFRESH_TOKEN_EXPIRE_DAYS)
@@ -355,24 +355,24 @@ class Settings(
     LoggingConfig,
 ):
     """Main settings class combining all configuration domains."""
-    
+
     @property
     def is_local_development(self) -> bool:
         """Check if running in local development."""
         return self.ENVIRONMENT in ("local", "development") and self.DEBUG
-    
+
     def __init__(self, **data):
         """Initialize settings with validation."""
         super().__init__(**data)
         self._validate_configuration()
-    
+
     def _validate_configuration(self) -> None:
         """Perform cross-field validation."""
         # Example: Ensure Redis is configured if caching is enabled
         if hasattr(self, "CACHE_ENABLED") and self.CACHE_ENABLED:
             if not self.REDIS_URL:
                 raise ValueError("Redis URL required when caching is enabled")
-        
+
         # Add more cross-field validations as needed
 
 
@@ -447,7 +447,7 @@ class LogLevel(str, Enum):
 
 class LoggingConfig(BaseConfig):
     """Logging configuration."""
-    
+
     # Log Levels
     LOG_LEVEL: LogLevel = Field(
         default=LogLevel.INFO,
@@ -457,13 +457,13 @@ class LoggingConfig(BaseConfig):
         default=LogLevel.INFO,
         description="Uvicorn server log level"
     )
-    
+
     # Output Format
     LOG_FORMAT: str = Field(
         default="json",
         description="Log format (json|pretty)"
     )
-    
+
     @field_validator("LOG_FORMAT")
     @classmethod
     def validate_log_format(cls, v: str, info) -> str:
@@ -471,7 +471,7 @@ class LoggingConfig(BaseConfig):
         if info.data.get("ENVIRONMENT") == "production":
             return "json"
         return v
-    
+
     # Sampling
     LOG_SAMPLING_RATE: float = Field(
         default=1.0,
@@ -479,7 +479,7 @@ class LoggingConfig(BaseConfig):
         le=1.0,
         description="Log sampling rate (0.0-1.0)"
     )
-    
+
     # OpenTelemetry
     OTEL_ENABLED: bool = Field(
         default=False,
@@ -493,7 +493,7 @@ class LoggingConfig(BaseConfig):
         default=None,
         description="OpenTelemetry collector endpoint"
     )
-    
+
     # Performance
     LOG_ASYNC: bool = Field(
         default=True,
@@ -526,14 +526,14 @@ user_id_var: ContextVar[Optional[str]] = ContextVar("user_id", default=None)
 
 def setup_logging() -> None:
     """Configure structlog with proper processors and formatters."""
-    
+
     # Configure standard library logging
     logging.basicConfig(
         format="%(message)s",
         stream=sys.stdout,
         level=getattr(logging, settings.LOG_LEVEL),
     )
-    
+
     # Base processors - always included
     base_processors = [
         structlog.stdlib.add_log_level,
@@ -544,7 +544,7 @@ def setup_logging() -> None:
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
     ]
-    
+
     # Environment-specific processors
     if settings.is_local_development:
         # Pretty console output for development
@@ -563,7 +563,7 @@ def setup_logging() -> None:
             structlog.processors.dict_tracebacks,
             structlog.processors.JSONRenderer(),
         ]
-    
+
     # Configure structlog
     structlog.configure(
         processors=processors,
@@ -580,22 +580,22 @@ def add_app_context(logger: Any, method_name: str, event_dict: Dict[str, Any]) -
     event_dict["service"] = settings.APP_NAME
     event_dict["environment"] = settings.ENVIRONMENT
     event_dict["version"] = settings.APP_VERSION
-    
+
     # Add request context if available
     request_id = request_id_var.get()
     if request_id:
         event_dict["request_id"] = request_id
-    
+
     user_id = user_id_var.get()
     if user_id:
         event_dict["user_id"] = user_id
-    
+
     # Add sampling decision
     if settings.LOG_SAMPLING_RATE < 1.0:
         import random
         if random.random() > settings.LOG_SAMPLING_RATE:
             raise structlog.DropEvent
-    
+
     return event_dict
 
 
@@ -622,14 +622,14 @@ import structlog
 
 class LoggingMiddleware(BaseHTTPMiddleware):
     """Middleware to add request context and log requests."""
-    
+
     async def dispatch(self, request: Request, call_next):
         # Generate or extract request ID
         request_id = request.headers.get("X-Request-ID", str(uuid4()))
-        
+
         # Set context variables
         request_id_var.set(request_id)
-        
+
         # Clear context variables for this request
         structlog.contextvars.clear_contextvars()
         structlog.contextvars.bind_contextvars(
@@ -638,29 +638,29 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             path=request.url.path,
             client_host=request.client.host if request.client else None,
         )
-        
+
         # Log request
         start_time = time.time()
         logger.info("request_started")
-        
+
         try:
             response = await call_next(request)
-            
+
             # Calculate duration
             duration = time.time() - start_time
-            
+
             # Log response
             logger.info(
                 "request_completed",
                 status_code=response.status_code,
                 duration_ms=round(duration * 1000, 2),
             )
-            
+
             # Add request ID to response headers
             response.headers["X-Request-ID"] = request_id
-            
+
             return response
-            
+
         except Exception as e:
             duration = time.time() - start_time
             logger.exception(
@@ -694,14 +694,14 @@ async def create_user(user_data: UserCreate):
         endpoint="create_user",
         feature_flag_registration=settings.FEATURE_REGISTRATION_ENABLED,
     )
-    
+
     if not settings.FEATURE_REGISTRATION_ENABLED:
         log.warning("registration_attempted_while_disabled")
         raise HTTPException(
             status_code=403,
             detail="Registration is currently disabled"
         )
-    
+
     try:
         # Log with structured data
         log.info(
@@ -710,18 +710,18 @@ async def create_user(user_data: UserCreate):
             # Don't log sensitive data!
             # password=user_data.password  # NEVER DO THIS
         )
-        
+
         user = await create_user_in_db(user_data)
-        
+
         # Success logging
         log.info(
             "user_created",
             user_id=user.id,
             email=user.email,
         )
-        
+
         return user
-        
+
     except IntegrityError as e:
         # Log specific errors with context
         log.warning(
@@ -748,12 +748,12 @@ async def get_user(user_id: int):
     """Get user with automatic request context."""
     # Context from middleware is automatically included
     logger.info("fetching_user", user_id=user_id)
-    
+
     user = await fetch_user(user_id)
     if not user:
         logger.warning("user_not_found", user_id=user_id)
         raise HTTPException(status_code=404)
-    
+
     return user
 ```
 
@@ -778,7 +778,7 @@ def test_user_creation_logging(log_output):
     """Test that user creation logs correctly."""
     # Your test code here
     create_user(...)
-    
+
     # Verify logs
     assert len(log_output) == 2
     assert log_output[0]["event"] == "creating_user"
@@ -804,26 +804,26 @@ def setup_telemetry(app):
     """Setup OpenTelemetry instrumentation."""
     if not settings.OTEL_ENABLED:
         return
-    
+
     # Set up tracer
     trace.set_tracer_provider(TracerProvider())
     tracer = trace.get_tracer(__name__)
-    
+
     # Set up exporter
     otlp_exporter = OTLPSpanExporter(
         endpoint=settings.OTEL_EXPORTER_ENDPOINT,
         insecure=True,  # Use False in production with proper TLS
     )
-    
+
     # Add span processor
     span_processor = BatchSpanProcessor(otlp_exporter)
     trace.get_tracer_provider().add_span_processor(span_processor)
-    
+
     # Instrument libraries
     FastAPIInstrumentor.instrument_app(app, tracer_provider=trace.get_tracer_provider())
     SQLAlchemyInstrumentor().instrument(enable_commenter=True)
     RedisInstrumentor().instrument()
-    
+
     # Add trace ID to logs
     def add_trace_context(logger, method_name, event_dict):
         span = trace.get_current_span()
@@ -832,7 +832,7 @@ def setup_telemetry(app):
             event_dict["trace_id"] = format(ctx.trace_id, "032x")
             event_dict["span_id"] = format(ctx.span_id, "016x")
         return event_dict
-    
+
     # Add processor to structlog
     structlog.configure(
         processors=[add_trace_context] + structlog.get_config()["processors"]
@@ -865,7 +865,7 @@ services:
       - JWT_SECRET_KEY_FILE=/run/secrets/jwt_secret
     secrets:
       - jwt_secret
-    
+
 secrets:
   jwt_secret:
     file: ./secrets/jwt_secret.txt

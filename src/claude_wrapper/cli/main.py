@@ -35,10 +35,10 @@ def get_client() -> ClaudeClient:
 def chat(
     message: str = typer.Argument(..., help="Message to send to Claude"),
     stream: bool = typer.Option(False, "--stream", help="Stream the response"),
-):
+) -> None:
     """Send a message to Claude and get a response."""
 
-    async def _chat():
+    async def _chat() -> None:
         try:
             client = get_client()
 
@@ -59,10 +59,10 @@ def chat(
 
         except ClaudeWrapperError as e:
             console.print(f"[red]Error: {e.message}[/red]")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from e
         except Exception as e:
             console.print(f"[red]Unexpected error: {str(e)}[/red]")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from e
 
     asyncio.run(_chat())
 
@@ -72,7 +72,7 @@ def server(
     host: str = typer.Option("0.0.0.0", "--host", "-h", help="Host to bind to"),
     port: int = typer.Option(8000, "--port", "-p", help="Port to bind to"),
     reload: bool = typer.Option(False, "--reload", help="Enable auto-reload for development"),
-):
+) -> None:
     """Start the OpenAI-compatible API server."""
     console.print(f"[cyan]Starting API server on {host}:{port}...[/cyan]")
 
@@ -87,7 +87,7 @@ def server(
 
 
 @app.command()
-def version():
+def version() -> None:
     """Show version information."""
     from claude_wrapper import __version__
 

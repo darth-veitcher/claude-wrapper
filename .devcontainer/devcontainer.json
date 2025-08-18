@@ -12,7 +12,6 @@
     "ghcr.io/devcontainers/features/git:1": {},
     "ghcr.io/mikaello/devcontainer-features/modern-shell-utils:2.0.0": {},
     "ghcr.io/devcontainers-extra/features/pre-commit:2": {}
-    // "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
   },
   "forwardPorts": [11235, 8080, 8000],
   "portsAttributes": {
@@ -60,14 +59,12 @@
   "mounts": [
     "source=claude-code-bashhistory-${devcontainerId},target=/commandhistory,type=volume",
     "source=claude-code-config-${devcontainerId},target=/home/node/.claude,type=volume",
-    // don't make the docker cache unique per devcontainerId, otherwise it will not be shared between containers
     "source=docker-cache,target=/var/lib/docker,type=volume"
   ],
   "remoteEnv": {
     "NODE_OPTIONS": "--max-old-space-size=4096",
     "CLAUDE_CONFIG_DIR": "/home/node/.claude",
     "POWERLEVEL9K_DISABLE_GITSTATUS": "true",
-    // the original host directory which is needed for volume mount commands from inside the container (Docker in Docker)
     "LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder:-.}"
   },
   "postCreateCommand": "",

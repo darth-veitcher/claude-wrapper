@@ -3,11 +3,11 @@
 import pytest
 
 from claude_wrapper.core.exceptions import (
-    AuthenticationError,
+    ClaudeAuthError,
+    ClaudeExecutionError,
+    ClaudeNotFoundError,
+    ClaudeTimeoutError,
     ClaudeWrapperError,
-    ConfigurationError,
-    SessionNotFoundError,
-    TimeoutError,
 )
 
 
@@ -17,63 +17,73 @@ class TestExceptions:
     @pytest.mark.unit
     def test_base_exception(self):
         """Test ClaudeWrapperError base exception."""
-        error = ClaudeWrapperError("Test error", code="TEST_ERROR")
+        error = ClaudeWrapperError("Test error")
 
         assert str(error) == "Test error"
         assert error.message == "Test error"
-        assert error.code == "TEST_ERROR"
-        assert error.details is None
 
-        # With details
-        error = ClaudeWrapperError("Test error", code="TEST", details={"key": "value"})
-        assert error.details == {"key": "value"}
+        # Test default message
+        error = ClaudeWrapperError()
+        assert error.message == "Claude wrapper error occurred"
 
     @pytest.mark.unit
-    def test_authentication_error(self):
-        """Test AuthenticationError."""
-        error = AuthenticationError("Not authenticated")
+    def test_claude_not_found_error(self):
+        """Test ClaudeNotFoundError."""
+        error = ClaudeNotFoundError("/custom/path")
 
         assert isinstance(error, ClaudeWrapperError)
-        assert str(error) == "Not authenticated"
-        assert error.code == "AUTH_ERROR"
+        assert "Claude CLI not found at '/custom/path'" in str(error)
+        assert "Please install claude-cli" in str(error)
+
+        # Test default path
+        error = ClaudeNotFoundError()
+        assert "Claude CLI not found at 'claude'" in str(error)
 
     @pytest.mark.unit
-    def test_timeout_error(self):
-        """Test TimeoutError."""
-        error = TimeoutError("Request timed out after 30s")
+    def test_claude_auth_error(self):
+        """Test ClaudeAuthError."""
+        error = ClaudeAuthError("Custom auth message")
+
+        assert isinstance(error, ClaudeWrapperError)
+        assert "Custom auth message" in str(error)
+        assert "Please run 'claude auth' first" in str(error)
+
+        # Test default message
+        error = ClaudeAuthError()
+        assert "Claude is not authenticated" in str(error)
+
+    @pytest.mark.unit
+    def test_claude_timeout_error(self):
+        """Test ClaudeTimeoutError."""
+        error = ClaudeTimeoutError("Request timed out after 30s")
 
         assert isinstance(error, ClaudeWrapperError)
         assert str(error) == "Request timed out after 30s"
-        assert error.code == "TIMEOUT"
+
+        # Test default message
+        error = ClaudeTimeoutError()
+        assert str(error) == "Command timed out"
 
     @pytest.mark.unit
-    def test_session_not_found_error(self):
-        """Test SessionNotFoundError."""
-        session_id = "test-123"
-        error = SessionNotFoundError(session_id)
+    def test_claude_execution_error(self):
+        """Test ClaudeExecutionError."""
+        error = ClaudeExecutionError("Command failed with exit code 1")
 
         assert isinstance(error, ClaudeWrapperError)
-        assert str(error) == f"Session not found: {session_id}"
-        assert error.code == "SESSION_NOT_FOUND"
-        assert error.details == {"session_id": session_id}
+        assert str(error) == "Command failed with exit code 1"
 
-    @pytest.mark.unit
-    def test_configuration_error(self):
-        """Test ConfigurationError."""
-        error = ConfigurationError("Invalid configuration: missing API key")
-
-        assert isinstance(error, ClaudeWrapperError)
-        assert str(error) == "Invalid configuration: missing API key"
-        assert error.code == "CONFIG_ERROR"
+        # Test default message
+        error = ClaudeExecutionError()
+        assert str(error) == "Command execution failed"
 
     @pytest.mark.unit
     def test_exception_inheritance(self):
         """Test that all custom exceptions inherit from base."""
         exceptions = [
-            AuthenticationError("test"),
-            TimeoutError("test"),
-            SessionNotFoundError("test"),
-            ConfigurationError("test"),
+            ClaudeAuthError("test"),
+            ClaudeTimeoutError("test"),
+            ClaudeNotFoundError("test"),
+            ClaudeExecutionError("test"),
         ]
 
         for exc in exceptions:
@@ -92,23 +102,19 @@ class TestExceptions:
             assert str(e) == "Wrapped error"
 
     @pytest.mark.unit
-    def test_exception_serialization(self):
-        """Test exception serialization for API responses."""
-        error = ClaudeWrapperError(
-            "Test error", code="TEST_CODE", details={"field": "value", "number": 42}
-        )
+    def test_exception_message_attribute(self):
+        """Test that exceptions store the message attribute."""
+        test_cases = [
+            (ClaudeWrapperError("test message"), "test message"),
+            (ClaudeAuthError("auth issue"), "auth issue. Please run 'claude auth' first."),
+            (ClaudeTimeoutError("timeout occurred"), "timeout occurred"),
+            (ClaudeExecutionError("exec failed"), "exec failed"),
+            (
+                ClaudeNotFoundError("custom"),
+                "Claude CLI not found at 'custom'. Please install claude-cli.",
+            ),
+        ]
 
-        # Should be serializable
-        import json
-
-        error_dict = {
-            "message": error.message,
-            "code": error.code,
-            "details": error.details,
-        }
-        serialized = json.dumps(error_dict)
-        deserialized = json.loads(serialized)
-
-        assert deserialized["message"] == "Test error"
-        assert deserialized["code"] == "TEST_CODE"
-        assert deserialized["details"] == {"field": "value", "number": 42}
+        for exception, expected_message in test_cases:
+            assert exception.message == expected_message
+            assert str(exception) == expected_message

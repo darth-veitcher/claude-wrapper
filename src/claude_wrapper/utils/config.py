@@ -7,7 +7,7 @@ from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class Config(BaseSettings):
+class Config(BaseSettings):  # type: ignore[misc]
     """Configuration settings for Claude Wrapper."""
 
     model_config = SettingsConfigDict(
@@ -29,9 +29,7 @@ class Config(BaseSettings):
     api_model: str = Field(default="claude-3-opus-20240229", description="Default model name")
 
     # Session settings
-    session_storage_dir: Path | None = Field(
-        default=None, description="Session storage directory"
-    )
+    session_storage_dir: Path | None = Field(default=None, description="Session storage directory")
     session_cleanup_days: int = Field(default=30, description="Days before session cleanup")
 
     # Streaming settings
@@ -54,7 +52,7 @@ class Config(BaseSettings):
     def to_yaml(self) -> str:
         """Export configuration to YAML string."""
         data = self.model_dump(exclude_none=True)
-        return yaml.dump(data, default_flow_style=False)
+        return str(yaml.dump(data, default_flow_style=False))
 
     def save(self, path: Path | None = None) -> None:
         """Save configuration to file."""
@@ -78,9 +76,14 @@ class Config(BaseSettings):
         return cache_dir
 
 
+# Global config instance
+_config_instance: Config | None = None
+
+
 def get_config() -> Config:
-    """Get global configuration instance."""
-    config_file = Path.home() / ".claude-wrapper" / "config.yaml"
-    if config_file.exists():
-        return Config.from_file(config_file)
-    return Config()
+    """Get global configuration instance (singleton)."""
+    global _config_instance
+    if _config_instance is None:
+        config_file = Path.home() / ".claude-wrapper" / "config.yaml"
+        _config_instance = Config.from_file(config_file) if config_file.exists() else Config()
+    return _config_instance

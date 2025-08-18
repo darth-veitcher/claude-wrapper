@@ -36,11 +36,11 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
-    
+
     environment:
       name: pypi
       url: https://pypi.org/p/claude-wrapper
-    
+
     permissions:
       id-token: write  # IMPORTANT: this permission is mandatory for trusted publishing
 
@@ -64,10 +64,10 @@ jobs:
         # Get current version from pyproject.toml
         CURRENT_VERSION=$(uv run python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
         echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
-        
+
         # Check if this version exists on PyPI
         PYPI_CHECK=$(curl -s "https://pypi.org/pypi/claude-wrapper/$CURRENT_VERSION/json" | jq -r '.info.version // "not_found"')
-        
+
         if [ "$PYPI_CHECK" == "not_found" ]; then
           echo "should_release=true" >> $GITHUB_OUTPUT
           echo "Version $CURRENT_VERSION not found on PyPI, proceeding with release"
@@ -97,11 +97,11 @@ jobs:
         release_name: Release v${{ steps.version-check.outputs.current_version }}
         body: |
           ## Changes
-          
+
           See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
-          
+
           ## Installation
-          
+
           ```bash
           pip install claude-wrapper==${{ steps.version-check.outputs.current_version }}
           ```

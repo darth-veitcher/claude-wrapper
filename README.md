@@ -43,7 +43,7 @@ from claude_wrapper import ClaudeClient
 
 async def quick_chat():
     client = ClaudeClient()
-    
+
     # Simple question
     response = await client.chat("What is Python?")
     print(response)
@@ -58,7 +58,7 @@ from claude_wrapper import ClaudeClient
 
 async def stream_example():
     client = ClaudeClient()
-    
+
     print("Claude: ", end="")
     async for chunk in client.stream_chat("Tell me a short joke"):
         print(chunk, end="", flush=True)
@@ -110,12 +110,12 @@ from claude_wrapper.core.exceptions import ClaudeTimeoutError, ClaudeAuthError
 
 async def robust_chat():
     client = ClaudeClient(timeout=30, retry_attempts=3)
-    
+
     try:
         # Simple request
         response = await client.chat("Explain quantum computing")
         print(f"Response: {response}")
-        
+
     except ClaudeAuthError:
         print("Please run 'claude login' first")
     except ClaudeTimeoutError:
@@ -149,11 +149,11 @@ uv run pytest
 
 ### What Claude Wrapper Does
 
-✅ **Wraps Claude CLI** - Provides Python interface to Claude CLI commands  
-✅ **Handles Streaming** - Supports real-time streaming with `--output-format stream-json`  
-✅ **Provides API Server** - OpenAI-compatible REST API  
-✅ **Error Recovery** - Automatic retries with exponential backoff  
-✅ **Token Estimation** - Estimates token usage (word count × 1.3)  
+✅ **Wraps Claude CLI** - Provides Python interface to Claude CLI commands
+✅ **Handles Streaming** - Supports real-time streaming with `--output-format stream-json`
+✅ **Provides API Server** - OpenAI-compatible REST API
+✅ **Error Recovery** - Automatic retries with exponential backoff
+✅ **Token Estimation** - Estimates token usage (word count × 1.3)
 
 ### Current Limitations
 

@@ -1,0 +1,194 @@
+# Pre-commit hooks for Claude Wrapper
+# Ensures code quality before commits reach CI
+
+default_language_version:
+  python: python3.12
+
+repos:
+  # General file fixes
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        name: Trim trailing whitespace
+      - id: end-of-file-fixer
+        name: Fix end of files
+      - id: check-yaml
+        name: Check YAML syntax
+      - id: check-json
+        name: Check JSON syntax
+      - id: check-toml
+        name: Check TOML syntax
+      - id: check-added-large-files
+        name: Check for large files
+        args: ['--maxkb=1000']
+      - id: check-case-conflict
+        name: Check for case conflicts
+      - id: check-merge-conflict
+        name: Check for merge conflicts
+      - id: detect-private-key
+        name: Detect private keys
+      - id: mixed-line-ending
+        name: Fix mixed line endings
+        args: ['--fix=lf']
+
+  # Python-specific checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-ast
+        name: Check Python AST
+      - id: check-docstring-first
+        name: Check docstring is first
+      - id: debug-statements
+        name: Check for debug statements
+      - id: name-tests-test
+        name: Check test naming
+        args: ['--pytest-test-first']
+
+  # Ruff - Fast Python linter and formatter
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.12.9
+    hooks:
+      # Run the linter
+      - id: ruff
+        name: Ruff linter
+        args: [--fix]
+        files: ^(src/|tests/).*\.py$
+      # Run the formatter
+      - id: ruff-format
+        name: Ruff formatter
+        files: ^(src/|tests/).*\.py$
+
+  # Type checking with mypy
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.17.1
+    hooks:
+      - id: mypy
+        name: Type check with mypy
+        additional_dependencies:
+          - types-pyyaml
+          - types-requests
+          - pydantic>=2.0.0
+          - typer
+          - rich
+          - fastapi
+          - httpx
+        args: [
+          --ignore-missing-imports,
+          --no-strict-optional,
+          --warn-unused-ignores
+        ]
+        files: ^src/.*\.py$
+        exclude: ^tests/
+
+  # Security checks with bandit (manual stage)
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.8.6
+    hooks:
+      - id: bandit
+        name: Security check with bandit
+        args: ['-ll', '-i', '-r', 'src/']
+        exclude: ^tests/
+        stages: [manual]
+
+  # Check for outdated Python syntax
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v3.20.0
+    hooks:
+      - id: pyupgrade
+        name: Upgrade Python syntax
+        args: [--py310-plus]
+        files: ^(src/|tests/).*\.py$
+
+  # Sort imports
+  - repo: https://github.com/PyCQA/isort
+    rev: 6.0.1
+    hooks:
+      - id: isort
+        name: Sort imports
+        args: ["--profile", "black", "--line-length", "100"]
+        files: ^(src/|tests/).*\.py$
+
+  # Markdown linting
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.45.0
+    hooks:
+      - id: markdownlint
+        name: Lint markdown files
+        args: ['--fix', '--disable', 'MD013', '--disable', 'MD033']
+        exclude: ^\.github/workflows/README\.md$
+
+  # YAML linting
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.37.1
+    hooks:
+      - id: yamllint
+        name: Lint YAML files
+        args: ['-d', 'relaxed']
+
+# Local hooks for project-specific checks
+  - repo: local
+    hooks:
+      # Run tests (fast tests only) - manual stage for on-demand testing
+      - id: pytest-fast
+        name: Run fast tests
+        entry: uv run pytest tests/ -m "not slow" --tb=short -q
+        language: system
+        types: [python]
+        pass_filenames: false
+        stages: [manual]
+
+      # Check that pyproject.toml is valid
+      - id: check-pyproject
+        name: Validate pyproject.toml
+        entry: uv run python -c "import tomllib; tomllib.load(open('pyproject.toml', 'rb'))"
+        language: system
+        files: pyproject.toml
+        pass_filenames: false
+
+      # Ensure no print statements in src/ (except CLI and server output)
+      - id: no-print-statements
+        name: Check for print statements in source
+        entry: '(?<!def )(?<!console\.)print\('
+        language: pygrep
+        types: [python]
+        files: ^src/
+        exclude: ^(src/claude_wrapper/cli/|src/claude_wrapper/api/server\.py)
+
+      # Verify no sensitive data
+      - id: no-sensitive-data
+        name: Check for sensitive data
+        entry: "(api[_-]?key|secret|token|password|pwd|passwd)\\s*=\\s*[\"'][^\"']+[\"']"
+        language: pygrep
+        types: [python]
+        exclude: ^(tests/|\.env\.example)
+
+      # Check for TODO comments (manual stage only)
+      - id: check-todos
+        name: Check for TODO comments
+        entry: '(TODO|FIXME|XXX):'
+        language: pygrep
+        types: [python]
+        pass_filenames: true
+        verbose: true
+        stages: [manual]
+
+      # Validate CLI commands work
+      - id: check-cli-basic
+        name: Basic CLI functionality check
+        entry: bash -c "uv run claude-wrapper --help > /dev/null"
+        language: system
+        pass_filenames: false
+        stages: [manual]
+
+ci:
+  # Run pre-commit.ci for automatic fixes in PRs
+  autofix_prs: true
+  autofix_commit_msg: |
+    [pre-commit.ci] auto fixes from hooks
+
+    for more information, see https://pre-commit.ci
+  autoupdate_schedule: weekly
+  autoupdate_commit_msg: '[pre-commit.ci] pre-commit autoupdate'
+  skip: [pytest-fast, check-pyproject, check-cli-basic]  # These require local environment

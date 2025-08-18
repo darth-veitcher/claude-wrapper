@@ -63,32 +63,28 @@ class TestConfig:
         """Test loading configuration from YAML file."""
         config_file = temp_dir / "config.yaml"
         config_content = """
-claude:
-  path: /usr/local/bin/claude
-  timeout: 180
-  retry_attempts: 2
-
-sessions:
-  directory: /var/sessions
-  max_age_days: 14
-  auto_cleanup: true
-
-api:
-  api_key: file-api-key
-  cors_origins: ["http://localhost:3000", "http://localhost:8000"]
-  
-defaults:
-  max_tokens: 2000
-  temperature: 0.3
-  model: claude-3-haiku
+claude_path: /usr/local/bin/claude
+timeout: 180
+retry_attempts: 2
+session_storage_dir: /var/sessions
+session_cleanup_days: 14
+api_key: file-api-key
+api_model: claude-3-haiku
+enable_caching: false
 """
         config_file.write_text(config_content)
 
-        with patch("claude_wrapper.utils.config.CONFIG_FILE", str(config_file)):
-            config = Config()
+        # Test loading from file directly
+        config = Config.from_file(config_file)
 
-            # Note: File loading would need to be implemented in Config class
-            # This test assumes the implementation exists
+        assert config.claude_path == "/usr/local/bin/claude"
+        assert config.timeout == 180
+        assert config.retry_attempts == 2
+        assert config.session_storage_dir == Path("/var/sessions")
+        assert config.session_cleanup_days == 14
+        assert config.api_key == "file-api-key"
+        assert config.api_model == "claude-3-haiku"
+        assert config.enable_caching is False
 
     @pytest.mark.unit
     def test_config_precedence(self):
@@ -134,25 +130,26 @@ defaults:
         assert not session_dir.exists()
 
         with patch.dict(os.environ, {"CLAUDE_WRAPPER_SESSION_STORAGE_DIR": str(session_dir)}):
-            config = Config()
+            Config()
             # Session dir should be created on first use
             # This would be handled by SessionManager
 
     @pytest.mark.unit
-    def test_config_cors_origins_parsing(self):
-        """Test parsing of CORS origins."""
-        # Single origin
-        with patch.dict(os.environ, {"CLAUDE_WRAPPER_CORS_ORIGINS": "http://localhost:3000"}):
+    def test_config_additional_fields(self):
+        """Test additional config fields."""
+        # Test retry delay
+        with patch.dict(os.environ, {"CLAUDE_WRAPPER_RETRY_DELAY": "2.5"}):
             config = Config()
-            assert config.cors_origins == "http://localhost:3000"
+            assert config.retry_delay == 2.5
 
-        # Multiple origins (would need JSON parsing)
+        # Test stream settings
         with patch.dict(
             os.environ,
-            {"CLAUDE_WRAPPER_CORS_ORIGINS": '["http://localhost:3000", "http://localhost:8000"]'},
+            {"CLAUDE_WRAPPER_STREAM_CHUNK_SIZE": "2048", "CLAUDE_WRAPPER_STREAM_TIMEOUT": "30.0"},
         ):
             config = Config()
-            # This would need proper JSON parsing in Config class
+            assert config.stream_chunk_size == 2048
+            assert config.stream_timeout == 30.0
 
     @pytest.mark.unit
     def test_config_model_validation(self):
@@ -164,6 +161,6 @@ defaults:
         ]
 
         for model in valid_models:
-            with patch.dict(os.environ, {"CLAUDE_WRAPPER_DEFAULT_MODEL": model}):
+            with patch.dict(os.environ, {"CLAUDE_WRAPPER_API_MODEL": model}):
                 config = Config()
-                assert config.default_model == model
+                assert config.api_model == model

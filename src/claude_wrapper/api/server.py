@@ -3,6 +3,7 @@
 import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from typing import Any
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -37,7 +38,7 @@ stream_processor = StreamProcessor()
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan manager."""
     # Startup
     print("Starting Claude Wrapper API server...")
@@ -80,10 +81,7 @@ async def verify_api_key(authorization: str | None = Header(None)) -> bool:
         raise HTTPException(status_code=401, detail="Authorization header required")
 
     # Extract token from "Bearer <token>" format
-    if authorization.startswith("Bearer "):
-        token = authorization[7:]
-    else:
-        token = authorization
+    token = authorization[7:] if authorization.startswith("Bearer ") else authorization
 
     if token != config.api_key:
         raise HTTPException(status_code=401, detail="Invalid API key")
@@ -92,7 +90,7 @@ async def verify_api_key(authorization: str | None = Header(None)) -> bool:
 
 
 @app.get("/")
-async def root():
+async def root() -> dict[str, Any]:
     """Root endpoint."""
     return {
         "message": "Claude Wrapper API",
@@ -105,8 +103,8 @@ async def root():
     }
 
 
-@app.get("/health")
-async def health():
+@app.get("/health", response_model=None)
+async def health() -> dict[str, Any] | JSONResponse:
     """Health check endpoint."""
     try:
         authenticated = await claude_client.check_auth()
@@ -145,8 +143,10 @@ async def list_models() -> ModelList:
     return ModelList(data=models)
 
 
-@app.post("/v1/chat/completions", dependencies=[Depends(verify_api_key)])
-async def chat_completions(request: ChatCompletionRequest):
+@app.post("/v1/chat/completions", dependencies=[Depends(verify_api_key)], response_model=None)
+async def chat_completions(
+    request: ChatCompletionRequest,
+) -> ChatCompletionResponse | EventSourceResponse:
     """OpenAI-compatible chat completions endpoint."""
 
     try:
@@ -200,16 +200,16 @@ async def chat_completions(request: ChatCompletionRequest):
         )
 
     except ClaudeWrapperError as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 async def stream_chat_response(
     message: str,
-    max_tokens: int | None,
-    temperature: float | None,
-    system_prompt: str | None,
+    _max_tokens: int | None,
+    _temperature: float | None,
+    _system_prompt: str | None,
     model: str,
 ) -> AsyncGenerator[str, None]:
     """Stream chat response as Server-Sent Events."""
@@ -254,22 +254,19 @@ async def stream_chat_response(
 
 
 @app.post("/v1/completions", dependencies=[Depends(verify_api_key)])
-async def completions(request: CompletionRequest):
+async def completions(request: CompletionRequest) -> CompletionResponse:
     """OpenAI-compatible completions endpoint."""
 
     try:
         # Handle prompt as string or list
-        if isinstance(request.prompt, list):
-            prompt = "\n".join(request.prompt)
-        else:
-            prompt = request.prompt
+        prompt = "\n".join(request.prompt) if isinstance(request.prompt, list) else request.prompt
 
         # Get completion
         response_text = await claude_client.complete(
             prompt=prompt,
-            max_tokens=request.max_tokens,
-            temperature=request.temperature,
-            stop_sequences=request.stop
+            _max_tokens=request.max_tokens,
+            _temperature=request.temperature,
+            _stop_sequences=request.stop
             if isinstance(request.stop, list)
             else [request.stop]
             if request.stop
@@ -297,13 +294,15 @@ async def completions(request: CompletionRequest):
         )
 
     except ClaudeWrapperError as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.exception_handler(ClaudeWrapperError)
-async def claude_wrapper_exception_handler(request: Request, exc: ClaudeWrapperError):
+async def claude_wrapper_exception_handler(
+    _request: Request, exc: ClaudeWrapperError
+) -> JSONResponse:
     """Handle Claude Wrapper exceptions."""
     return JSONResponse(
         status_code=500,
@@ -317,7 +316,7 @@ async def claude_wrapper_exception_handler(request: Request, exc: ClaudeWrapperE
     )
 
 
-def main():
+def main() -> None:
     """Main entry point for the API server."""
     import uvicorn
 

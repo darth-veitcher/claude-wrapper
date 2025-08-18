@@ -9,8 +9,10 @@ from typing import Any
 class StreamProcessor:
     """Process and format streaming responses."""
 
+    _id_counter = 0
+
     @staticmethod
-    def format_sse(data: dict[str, Any], event: str | None = None) -> str:
+    def format_sse(data: dict[str, Any] | str, event: str | None = None) -> str:
         """Format data as Server-Sent Event.
 
         Args:
@@ -75,8 +77,9 @@ class StreamProcessor:
         if buffer:
             yield {"type": "content", "content": buffer, "finished": True}
 
-    @staticmethod
+    @classmethod
     def create_openai_stream_chunk(
+        cls,
         content: str | None = None,
         role: str | None = None,
         finish_reason: str | None = None,
@@ -97,6 +100,9 @@ class StreamProcessor:
         """
         import time
 
+        # Increment counter for unique IDs
+        cls._id_counter += 1
+
         delta = {}
         if role:
             delta["role"] = role
@@ -104,7 +110,7 @@ class StreamProcessor:
             delta["content"] = content
 
         return {
-            "id": f"chatcmpl-{int(time.time() * 1000)}",
+            "id": f"chatcmpl-{int(time.time() * 1000)}-{cls._id_counter}",
             "object": "chat.completion.chunk",
             "created": int(time.time()),
             "model": model,
@@ -135,7 +141,7 @@ class StreamProcessor:
         Yields:
             Rate-limited chunks
         """
-        last_send = 0
+        last_send = 0.0
 
         async for chunk in stream:
             now = asyncio.get_event_loop().time()
