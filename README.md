@@ -10,6 +10,7 @@ A simple Python wrapper for Claude CLI that seamlessly integrates Claude's capab
 - **🔒 No API Keys**: Leverages Claude CLI's authentication - no separate API keys needed
 - **⚡ Robust Error Handling**: Automatic retries and comprehensive error management
 - **📊 Efficient**: Subprocess optimization with configurable timeouts and retries
+- **🔄 Recursive Calling**: Built-in support for Claude-calling-Claude with safeguards
 
 ## 🚀 5-Minute Quickstart
 
@@ -129,6 +130,38 @@ async def robust_chat():
         print("Request timed out, try increasing timeout")
 
 asyncio.run(robust_chat())
+```
+
+#### Example 6: Recursive Claude-Calling-Claude (2 minutes)
+```python
+import asyncio
+from claude_wrapper.core import create_claude_client, RecursionError
+
+async def recursive_analysis():
+    # Create client with recursion safeguards
+    client = create_claude_client(max_recursion_depth=5)
+
+    try:
+        # Initial analysis
+        analysis = await client.chat("Analyze this concept: machine learning")
+        print(f"Initial: {analysis[:100]}...")
+
+        # Meta-analysis (recursive call)
+        meta = await client.chat(f"Review this analysis for accuracy: {analysis}")
+        print(f"Meta-analysis: {meta[:100]}...")
+
+        # Final synthesis
+        final = await client.chat(f"Synthesize these insights: {analysis} | {meta}")
+        print(f"Final: {final[:100]}...")
+
+        # Check recursion depth
+        info = client.get_recursion_info()
+        print(f"Recursion depth: {info['current_depth']}/{info['max_depth']}")
+
+    except RecursionError as e:
+        print(f"Recursion limit safely reached: {e}")
+
+asyncio.run(recursive_analysis())
 ```
 
 ## 📦 Installation
