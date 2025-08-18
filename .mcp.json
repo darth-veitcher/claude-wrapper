@@ -1,0 +1,94 @@
+{
+  "mcpServers": {
+    "time": {
+      "command": "uvx",
+      "args": ["mcp-server-time"]
+    },
+    "git": {
+      "command": "uvx",
+      "args": ["mcp-server-git", "--repository", "/workspace"]
+    },
+    "github": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "GITHUB_PERSONAL_ACCESS_TOKEN",
+        "ghcr.io/github/github-mcp-server"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
+      }
+    },
+    "serena": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/oraios/serena",
+        "serena-mcp-server",
+        "--context",
+        "ide-assistant",
+        "--project",
+        "/workspace"
+      ],
+      "env": {}
+    },
+    "sequential-thinking": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"],
+      "env": {},
+      "alwaysAllow": ["sequentialthinking"]
+    },
+    "context7": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"],
+      "env": {}
+    },
+    "magic": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@21st-dev/magic"],
+      "env": {}
+    },
+    "playwright": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest"],
+      "env": {}
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/workspace"]
+    },
+    "fetch": {
+      "command": "sudo",
+      "args": ["docker", "run", "-i", "--rm", "mcp/fetch"]
+    },
+    "searxng": {
+      "command": "npx",
+      "args": ["-y", "mcp-searxng"],
+      "env": {
+        "SEARXNG_URL": "http://searxng:8080"
+      }
+    },
+    "memgraph": {
+      "command": "sudo",
+      "args": ["docker", "run", "-i", "--rm", "--network", "mcp-services", "-e", "MEMGRAPH_URL=bolt://memgraph:7687", "-e", "MEMGRAPH_USER=", "-e", "MEMGRAPH_PASSWORD=", "-e", "MCP_TRANSPORT=stdio", "mcp-memgraph:latest"]
+    },
+    "crawl4ai": {
+      "type": "sse",
+      "url": "http://crawl4ai:11235/mcp/sse"
+    },
+    "docker": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["docker-mcp"],
+      "env": {}
+    }
+  }
+}

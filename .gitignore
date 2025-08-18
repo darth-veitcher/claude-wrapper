@@ -1,0 +1,12 @@
+!.claude/*
+.venv
+
+# Python compiler
+__pycache__/
+*.py[cod]
+
+# Tests
+.pytest_cache/
+.coverage
+coverage*
+htmlcov/

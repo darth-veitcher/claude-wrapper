@@ -1,0 +1,6 @@
+[submodule ".devcontainer/mcp/context7"]
+	path = .devcontainer/mcp/context7
+	url = https://github.com/upstash/context7.git
+[submodule ".devcontainer/mcp/memgraph-ai-toolkit"]
+	path = .devcontainer/mcp/memgraph-ai-toolkit
+	url = https://github.com/memgraph/ai-toolkit.git

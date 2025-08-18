@@ -1,0 +1,182 @@
+# .devcontainer/compose-mcp.yml
+services:
+  redis:
+    container_name: mcp-redis
+    image: docker.io/valkey/valkey:8-alpine
+    command: valkey-server --save 30 1 --loglevel warning
+    restart: unless-stopped
+    hostname: redis
+    volumes:
+      - ./.data/valkey:/data:z
+    networks:
+      - mcp-services
+    # No ports exposed - internal access only
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETGID
+      - SETUID
+      - DAC_OVERRIDE
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1m"
+        max-file: "1"
+
+  searxng:
+    image: searxng/searxng:latest
+    container_name: mcp-searxng
+    hostname: searxng
+    environment:
+      SEARXNG_HOSTNAME: searxng:8080/
+      SEARXNG_UWSGI_WORKERS: 4
+      SEARXNG_UWSGI_THREADS: 4
+      SEARXNG_BIND_ADDRESS: 0.0.0.0
+      SEARXNG_BASE_URL: http://searxng:8080
+      SEARXNG_SECRET: superdupersecret
+      SEARXNG_IMAGE_PROXY: true
+      SEARXNG_METHOD: GET
+      SEARXNG_STATIC_USE_HASH: true
+      SEARXNG_PUBLIC_INSTANCE: false
+      SEARXNG_LIMITER: false
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+      - ./mcp/searxng:/etc/searxng:z
+    restart: unless-stopped
+    networks:
+      - mcp-services
+    ports:
+      - "8080:8080" # Only expose if you want host access
+    depends_on:
+      redis:
+        condition: service_healthy
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+      - DAC_OVERRIDE
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://localhost:8080/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1m"
+        max-file: "1"
+
+  crawl4ai:
+    image: unclecode/crawl4ai:0.6.0rc1-r2
+    container_name: mcp-crawl4ai
+    hostname: crawl4ai
+    shm_size: 1g
+    restart: unless-stopped
+    env_file: ./mcp/crawl4ai/.llm.env
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    networks:
+      - mcp-services
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    ports:
+      - "11235:11235" # Only expose if you want host access
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11235/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  context7-mcp:
+    build:
+      context: ./mcp/context7
+      dockerfile: Dockerfile
+    container_name: mcp-context7
+    hostname: context7-mcp
+    networks:
+      - mcp-services
+    # No ports exposed - internal access only
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  memgraph:
+    image: memgraph/memgraph-mage:latest # Use latest MAGE image for advanced graph algorithms
+    container_name: memgraph
+    hostname: memgraph
+    restart: unless-stopped
+    # No ports exposed - internal access only
+    ports:
+      - "7687" # bolt
+      - "7444" # logs
+    networks:
+      - mcp-services
+    # environment:
+    #   MEMGRAPH_USER: memgraph
+    #   MEMGRAPH_PASSWORD: memgraph
+    command:
+      [
+        "--log-level=INFO",
+        "--schema-info-enabled=true",
+        "--storage-mode=IN_MEMORY_ANALYTICAL",
+      ]
+    volumes:
+      - ./.data/memgraph:/var/lib/memgraph
+      - ./.data/memgraph-logs:/var/log/memgraph
+    user: "${UID:-1000}:${GID:-1000}"
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETGID
+      - SETUID
+      - DAC_OVERRIDE
+      - CHOWN
+      - FOWNER
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "echo 'MATCH (n) RETURN count(n) as node_count;' | mgconsole || exit 1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 0s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  lab:
+    container_name: memgraph-lab
+    hostname: memgraph-lab
+    restart: unless-stopped
+    depends_on:
+      - memgraph
+    image: memgraph/lab:latest
+    networks:
+      - mcp-services
+    ports:
+      - "3000:3000" # Only expose if you want host access
+    environment:
+      QUICK_CONNECT_MG_HOST: memgraph
+
+networks:
+  mcp-services:
+    driver: bridge
+    name: mcp-services
