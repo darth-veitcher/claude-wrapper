@@ -1,5 +1,6 @@
 """Tests for the CLI interface."""
 
+import re
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -147,7 +148,9 @@ class TestCLICommands:
 
         assert result.exit_code == 0
         assert "Send a message to Claude" in result.output
-        assert "--stream" in result.output
+        # Strip ANSI color codes for reliable string matching
+        clean_output = re.sub(r"\x1b\[[0-9;]*m", "", result.output)
+        assert "--stream" in clean_output
 
     @pytest.mark.unit
     def test_server_help(self, cli_runner):

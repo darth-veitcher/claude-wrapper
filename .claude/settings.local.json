@@ -8,7 +8,10 @@
       "Bash(claude:*)",
       "Bash(cat:*)",
       "Bash(pre-commit run:*)",
-      "Bash(gh run list:*)"
+      "Bash(gh run list:*)",
+      "Bash(gh auth:*)",
+      "Bash(gh run view:*)",
+      "Bash(gh:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
