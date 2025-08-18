@@ -27,11 +27,13 @@ claude login
 
 2. **Install Claude Wrapper**:
 ```bash
+# Modern approach (recommended)
+uvx claude-wrapper --help  # Run directly without installation
+# OR install globally with uv
+uv tool install claude-wrapper
+
+# Traditional approach (if uv not available)
 pip install claude-wrapper
-# OR from source
-git clone https://github.com/yourusername/claude-wrapper
-cd claude-wrapper
-pip install -e .
 ```
 
 ### Quick Examples
@@ -69,16 +71,21 @@ asyncio.run(stream_example())
 
 #### Example 3: CLI Usage (30 seconds)
 ```bash
-# Quick question
-claude-wrapper chat "What is the capital of France?"
+# Using uvx (no installation required)
+uvx claude-wrapper chat "What is the capital of France?"
+uvx claude-wrapper chat "Explain quantum computing" --stream
 
-# Stream the response
+# If installed with uv or pip
+claude-wrapper chat "What is the capital of France?"
 claude-wrapper chat "Explain quantum computing" --stream
 ```
 
 #### Example 4: API Server with OpenAI Client (2 minutes)
 ```bash
-# Terminal 1: Start the server
+# Terminal 1: Start the server (using uvx)
+uvx claude-wrapper server
+
+# Or if installed
 claude-wrapper server
 ```
 
@@ -126,23 +133,64 @@ asyncio.run(robust_chat())
 
 ## 📦 Installation
 
-### From PyPI (when published)
+### 🚀 Modern Approach (Recommended)
+
+**Option 1: Run without installing (uvx)**
+```bash
+# No installation needed - run directly from PyPI
+uvx claude-wrapper chat "Hello Claude!"
+uvx claude-wrapper server --port 8080
+uvx claude-wrapper --help
+```
+
+**Option 2: Install globally with uv**
+```bash
+# Install as a global tool
+uv tool install claude-wrapper
+
+# Use anywhere
+claude-wrapper chat "Hello Claude!"
+```
+
+**Option 3: Install in project with uv**
+```bash
+# Add to your project
+uv add claude-wrapper
+
+# Use in your project
+uv run claude-wrapper chat "Hello Claude!"
+```
+
+### 📦 Traditional Approach
+
+**From PyPI**
 ```bash
 pip install claude-wrapper
 ```
 
-### From Source
+**From Source**
 ```bash
-git clone https://github.com/yourusername/claude-wrapper
+git clone https://github.com/darth-veitcher/claude-wrapper
 cd claude-wrapper
 pip install -e .
 ```
 
-### Using uv (recommended for development)
+### 🔧 Development Setup
+
 ```bash
-uv pip install -e .
+# Clone repository
+git clone https://github.com/darth-veitcher/claude-wrapper
+cd claude-wrapper
+
+# Install in development mode with uv (recommended)
+uv sync --dev
+
 # Run tests
 uv run pytest
+
+# Traditional development setup
+pip install -e ".[dev]"
+pytest
 ```
 
 ## 🎯 Core Capabilities
@@ -227,15 +275,24 @@ class ClaudeClient:
 
 ## 🔧 CLI Commands
 
+### Modern uv/uvx Usage
 ```bash
-# Chat commands
+# Run directly without installation (uvx)
+uvx claude-wrapper chat "Your message"
+uvx claude-wrapper chat "Your message" --stream
+uvx claude-wrapper server --host 0.0.0.0 --port 8000
+uvx claude-wrapper version
+
+# If installed as uv tool
+uv tool run claude-wrapper chat "Your message"
+```
+
+### Traditional Usage
+```bash
+# After pip/uv install
 claude-wrapper chat "Your message"
 claude-wrapper chat "Your message" --stream
-
-# Server
 claude-wrapper server --host 0.0.0.0 --port 8000
-
-# Other commands
 claude-wrapper version
 ```
 
@@ -263,6 +320,22 @@ api:
 
 ## 🧪 Testing
 
+### Using uv (Recommended)
+```bash
+# Install dev dependencies
+uv sync --dev
+
+# Run all tests
+uv run pytest
+
+# Run specific test file
+uv run pytest tests/test_client.py -v
+
+# Run without coverage
+uv run pytest --no-cov
+```
+
+### Traditional Approach
 ```bash
 # Install with dev dependencies
 pip install -e ".[dev]"
@@ -272,12 +345,6 @@ pytest tests/
 
 # Run specific test file
 pytest tests/test_client.py -v
-
-# Run without coverage
-pytest --no-cov
-
-# Using uv (recommended)
-uv run pytest
 ```
 
 ## 🐛 Troubleshooting
