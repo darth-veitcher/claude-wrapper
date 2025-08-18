@@ -84,7 +84,7 @@ jobs:
 
           with open('pyproject.toml', 'wb') as f:
               tomli_w.dump(data, f)
-          "
+        "
 
     - name: Build package
       run: uv build
