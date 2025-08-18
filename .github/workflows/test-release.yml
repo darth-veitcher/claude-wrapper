@@ -73,18 +73,24 @@ jobs:
         echo "Generated development version: $DEV_VERSION"
 
         # Update pyproject.toml with dev version
-        uv run python -c "
-          import tomllib
-          import tomli_w
+        cat > update_version.py << 'EOF'
+        import tomllib
+        import tomli_w
+        import os
 
-          with open('pyproject.toml', 'rb') as f:
-              data = tomllib.load(f)
+        dev_version = os.environ['DEV_VERSION']
 
-          data['project']['version'] = '${DEV_VERSION}'
+        with open('pyproject.toml', 'rb') as f:
+            data = tomllib.load(f)
 
-          with open('pyproject.toml', 'wb') as f:
-              tomli_w.dump(data, f)
-        "
+        data['project']['version'] = dev_version
+
+        with open('pyproject.toml', 'wb') as f:
+            tomli_w.dump(data, f)
+        EOF
+
+        DEV_VERSION="${DEV_VERSION}" uv run python update_version.py
+        rm update_version.py
 
     - name: Build package
       run: uv build
