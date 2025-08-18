@@ -58,7 +58,7 @@ class TestModels:
         request = ChatCompletionRequest(messages=[Message(role="user", content="Hello")])
 
         # Check defaults
-        assert request.model == "claude-3-opus-20240229"
+        assert request.model == "sonnet"
         assert request.temperature == 1.0
         assert request.stream is False
         assert request.max_tokens is None
@@ -209,7 +209,7 @@ class TestModels:
         request = CompletionRequest(prompt="Complete this: ")
 
         assert request.prompt == "Complete this: "
-        assert request.model == "claude-3-opus-20240229"
+        assert request.model == "sonnet"
         assert request.max_tokens == 16
         assert request.temperature == 1.0
 
@@ -293,7 +293,7 @@ class TestModels:
         json_str = request.model_dump_json()
         data = json.loads(json_str)
 
-        assert data["model"] == "claude-3-opus-20240229"
+        assert data["model"] == "sonnet"
         assert data["messages"][0]["role"] == "user"
         assert data["messages"][0]["content"] == "Test"
         assert data["temperature"] == 0.7

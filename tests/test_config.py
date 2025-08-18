@@ -24,7 +24,7 @@ class TestConfig:
         assert config.session_cleanup_days == 30
         assert config.api_key is None
         assert config.api_base_url == "http://localhost:8000"
-        assert config.api_model == "claude-3-opus-20240229"
+        assert config.api_model == "sonnet"
         assert config.enable_caching is True
         assert config.enable_telemetry is False
 
