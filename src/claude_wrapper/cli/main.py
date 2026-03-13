@@ -1,6 +1,7 @@
 """Simple CLI wrapper for Claude."""
 
 import asyncio
+from typing import Annotated
 
 import typer
 from rich.console import Console
@@ -100,6 +101,76 @@ def version() -> None:
         console.print("[green]✓[/green] Claude CLI is installed and authenticated")
     except Exception as e:
         console.print(f"[red]✗[/red] Claude CLI issue: {str(e)}")
+
+
+@app.command()
+def mcp_server(
+    transport: Annotated[
+        str,
+        typer.Option(
+            "--transport",
+            "-t",
+            help="Transport to use: 'stdio' or 'streamable-http'",
+        ),
+    ] = "stdio",
+    host: str = typer.Option("127.0.0.1", "--host", help="Host for HTTP transport"),
+    port: int = typer.Option(8000, "--port", "-p", help="Port for HTTP transport"),
+    api_key: str | None = typer.Option(
+        None,
+        "--api-key",
+        help=(
+            "Bearer API key required by HTTP clients.  "
+            "Falls back to the CLAUDE_WRAPPER_API_KEY environment variable.  "
+            "Ignored for stdio transport."
+        ),
+        envvar="CLAUDE_WRAPPER_API_KEY",
+    ),
+) -> None:
+    """Start the Claude Wrapper MCP server.
+
+    Supports two transports:
+
+    \b
+    * stdio           – For local tools such as Claude Desktop (default).
+    * streamable-http – Exposes an HTTP endpoint at http://<host>:<port>/mcp.
+
+    When using streamable-http you can protect the endpoint with an API key:
+
+    \b
+    claude-wrapper mcp-server --transport streamable-http --api-key secret
+    # or via environment variable:
+    CLAUDE_WRAPPER_API_KEY=secret claude-wrapper mcp-server --transport streamable-http
+    """
+    from claude_wrapper.mcp.server import get_http_app
+    from claude_wrapper.mcp.server import mcp as mcp_instance
+
+    if transport not in ("stdio", "streamable-http"):
+        console.print(f"[red]Unknown transport '{transport}'. Use 'stdio' or 'streamable-http'.[/red]")
+        raise typer.Exit(1)
+
+    if transport == "stdio":
+        mcp_instance.run(transport="stdio")
+        return
+
+    # ── streamable-http ──────────────────────────────────────────────────────
+    import uvicorn
+
+    if api_key:
+        console.print(
+            f"[cyan]Starting MCP server (streamable-http, auth enabled) on "
+            f"http://{host}:{port}/mcp ...[/cyan]"
+        )
+    else:
+        console.print(
+            f"[yellow]Starting MCP server (streamable-http, NO auth) on "
+            f"http://{host}:{port}/mcp ...[/yellow]"
+        )
+
+    mcp_instance.settings.host = host
+    mcp_instance.settings.port = port
+
+    asgi_app = get_http_app(api_key=api_key)
+    uvicorn.run(asgi_app, host=host, port=port)
 
 
 if __name__ == "__main__":
