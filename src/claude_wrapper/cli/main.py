@@ -1,6 +1,7 @@
 """Simple CLI wrapper for Claude."""
 
 import asyncio
+from typing import Annotated
 
 import typer
 from rich.console import Console
@@ -100,6 +101,41 @@ def version() -> None:
         console.print("[green]✓[/green] Claude CLI is installed and authenticated")
     except Exception as e:
         console.print(f"[red]✗[/red] Claude CLI issue: {str(e)}")
+
+
+@app.command()
+def mcp_server(
+    transport: Annotated[
+        str,
+        typer.Option(
+            "--transport",
+            "-t",
+            help="Transport to use: 'stdio' or 'streamable-http'",
+        ),
+    ] = "stdio",
+    host: str = typer.Option("127.0.0.1", "--host", "-h", help="Host for HTTP transport"),
+    port: int = typer.Option(8000, "--port", "-p", help="Port for HTTP transport"),
+) -> None:
+    """Start the Claude Wrapper MCP server.
+
+    Supports two transports:
+
+    \b
+    * stdio           – For local tools such as Claude Desktop (default).
+    * streamable-http – Exposes an HTTP endpoint at http://<host>:<port>/mcp.
+    """
+    from claude_wrapper.mcp.server import mcp as mcp_instance
+
+    if transport not in ("stdio", "streamable-http"):
+        console.print(f"[red]Unknown transport '{transport}'. Use 'stdio' or 'streamable-http'.[/red]")
+        raise typer.Exit(1)
+
+    if transport == "streamable-http":
+        console.print(f"[cyan]Starting MCP server (streamable-http) on {host}:{port}/mcp ...[/cyan]")
+        mcp_instance.settings.host = host
+        mcp_instance.settings.port = port
+
+    mcp_instance.run(transport=transport)  # type: ignore[arg-type]
 
 
 if __name__ == "__main__":
