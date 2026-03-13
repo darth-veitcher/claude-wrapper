@@ -80,7 +80,6 @@ test = [
 [project.scripts]
 claude-wrapper = "claude_wrapper.cli.main:app"
 claude-api = "claude_wrapper.api.server:main"
-claude-mcp = "claude_wrapper.cli.main:app"
 
 [project.urls]
 Homepage = "https://github.com/claude-wrapper/claude-wrapper"
