@@ -145,7 +145,9 @@ def mcp_server(
     from claude_wrapper.mcp.server import mcp as mcp_instance
 
     if transport not in ("stdio", "streamable-http"):
-        console.print(f"[red]Unknown transport '{transport}'. Use 'stdio' or 'streamable-http'.[/red]")
+        console.print(
+            f"[red]Unknown transport '{transport}'. Use 'stdio' or 'streamable-http'.[/red]"
+        )
         raise typer.Exit(1)
 
     if transport == "stdio":

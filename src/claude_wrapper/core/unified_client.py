@@ -403,7 +403,7 @@ class UnifiedClaudeClient:
                         if not text:
                             continue
                         if text.startswith(last_text):
-                            delta = text[len(last_text):]
+                            delta = text[len(last_text) :]
                             if delta:
                                 yield delta
                         else:

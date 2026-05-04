@@ -30,27 +30,112 @@ from claude_wrapper.utils.config import get_config
 # the canonical versioned names so existing configurations keep working.
 _AVAILABLE_MODELS: list[dict] = [
     # ── Short aliases (passed directly to `claude --model`) ───────────────
-    {"id": "opus",   "owned_by": "anthropic", "context_window": 1_000_000, "max_output_tokens": 16_384},
-    {"id": "sonnet", "owned_by": "anthropic", "context_window": 1_000_000, "max_output_tokens": 16_384},
-    {"id": "haiku",  "owned_by": "anthropic", "context_window":   200_000, "max_output_tokens":  8_192},
+    {
+        "id": "opus",
+        "owned_by": "anthropic",
+        "context_window": 1_000_000,
+        "max_output_tokens": 16_384,
+    },
+    {
+        "id": "sonnet",
+        "owned_by": "anthropic",
+        "context_window": 1_000_000,
+        "max_output_tokens": 16_384,
+    },
+    {"id": "haiku", "owned_by": "anthropic", "context_window": 200_000, "max_output_tokens": 8_192},
     # ── Haiku ─────────────────────────────────────────────────────────────
-    {"id": "claude-haiku-4-5",          "owned_by": "anthropic", "context_window": 200_000, "max_output_tokens":  8_192},
-    {"id": "claude-haiku-4-5-20251001", "owned_by": "anthropic", "context_window": 200_000, "max_output_tokens":  8_192},
+    {
+        "id": "claude-haiku-4-5",
+        "owned_by": "anthropic",
+        "context_window": 200_000,
+        "max_output_tokens": 8_192,
+    },
+    {
+        "id": "claude-haiku-4-5-20251001",
+        "owned_by": "anthropic",
+        "context_window": 200_000,
+        "max_output_tokens": 8_192,
+    },
     # ── Sonnet ────────────────────────────────────────────────────────────
-    {"id": "claude-sonnet-4-0",          "owned_by": "anthropic", "context_window": 1_000_000, "max_output_tokens": 16_384},
-    {"id": "claude-sonnet-4-20250514",   "owned_by": "anthropic", "context_window": 1_000_000, "max_output_tokens": 16_384},
-    {"id": "claude-sonnet-4-5",          "owned_by": "anthropic", "context_window": 1_000_000, "max_output_tokens": 16_384},
-    {"id": "claude-sonnet-4-5-20250929", "owned_by": "anthropic", "context_window": 1_000_000, "max_output_tokens": 16_384},
-    {"id": "claude-sonnet-4-6",          "owned_by": "anthropic", "context_window": 1_000_000, "max_output_tokens": 16_384},
+    {
+        "id": "claude-sonnet-4-0",
+        "owned_by": "anthropic",
+        "context_window": 1_000_000,
+        "max_output_tokens": 16_384,
+    },
+    {
+        "id": "claude-sonnet-4-20250514",
+        "owned_by": "anthropic",
+        "context_window": 1_000_000,
+        "max_output_tokens": 16_384,
+    },
+    {
+        "id": "claude-sonnet-4-5",
+        "owned_by": "anthropic",
+        "context_window": 1_000_000,
+        "max_output_tokens": 16_384,
+    },
+    {
+        "id": "claude-sonnet-4-5-20250929",
+        "owned_by": "anthropic",
+        "context_window": 1_000_000,
+        "max_output_tokens": 16_384,
+    },
+    {
+        "id": "claude-sonnet-4-6",
+        "owned_by": "anthropic",
+        "context_window": 1_000_000,
+        "max_output_tokens": 16_384,
+    },
     # ── Opus ──────────────────────────────────────────────────────────────
-    {"id": "claude-opus-4-0",          "owned_by": "anthropic", "context_window": 1_000_000, "max_output_tokens": 16_384},
-    {"id": "claude-opus-4-20250514",   "owned_by": "anthropic", "context_window": 1_000_000, "max_output_tokens": 16_384},
-    {"id": "claude-opus-4-1",          "owned_by": "anthropic", "context_window": 1_000_000, "max_output_tokens": 16_384},
-    {"id": "claude-opus-4-1-20250805", "owned_by": "anthropic", "context_window": 1_000_000, "max_output_tokens": 16_384},
-    {"id": "claude-opus-4-5",          "owned_by": "anthropic", "context_window": 1_000_000, "max_output_tokens": 16_384},
-    {"id": "claude-opus-4-5-20251101", "owned_by": "anthropic", "context_window": 1_000_000, "max_output_tokens": 16_384},
-    {"id": "claude-opus-4-6",          "owned_by": "anthropic", "context_window": 1_000_000, "max_output_tokens": 16_384},
-    {"id": "claude-opus-4-7",          "owned_by": "anthropic", "context_window": 1_000_000, "max_output_tokens": 16_384},
+    {
+        "id": "claude-opus-4-0",
+        "owned_by": "anthropic",
+        "context_window": 1_000_000,
+        "max_output_tokens": 16_384,
+    },
+    {
+        "id": "claude-opus-4-20250514",
+        "owned_by": "anthropic",
+        "context_window": 1_000_000,
+        "max_output_tokens": 16_384,
+    },
+    {
+        "id": "claude-opus-4-1",
+        "owned_by": "anthropic",
+        "context_window": 1_000_000,
+        "max_output_tokens": 16_384,
+    },
+    {
+        "id": "claude-opus-4-1-20250805",
+        "owned_by": "anthropic",
+        "context_window": 1_000_000,
+        "max_output_tokens": 16_384,
+    },
+    {
+        "id": "claude-opus-4-5",
+        "owned_by": "anthropic",
+        "context_window": 1_000_000,
+        "max_output_tokens": 16_384,
+    },
+    {
+        "id": "claude-opus-4-5-20251101",
+        "owned_by": "anthropic",
+        "context_window": 1_000_000,
+        "max_output_tokens": 16_384,
+    },
+    {
+        "id": "claude-opus-4-6",
+        "owned_by": "anthropic",
+        "context_window": 1_000_000,
+        "max_output_tokens": 16_384,
+    },
+    {
+        "id": "claude-opus-4-7",
+        "owned_by": "anthropic",
+        "context_window": 1_000_000,
+        "max_output_tokens": 16_384,
+    },
 ]
 
 if TYPE_CHECKING:

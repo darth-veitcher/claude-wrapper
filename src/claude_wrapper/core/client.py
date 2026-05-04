@@ -211,7 +211,7 @@ class ClaudeClient:
                     # Each partial event contains the cumulative text so far;
                     # yield only the delta since the previous event.
                     if text.startswith(last_text):
-                        delta = text[len(last_text):]
+                        delta = text[len(last_text) :]
                         if delta:
                             yield delta
                     else:

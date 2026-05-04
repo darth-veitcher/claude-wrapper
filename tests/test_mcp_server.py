@@ -339,4 +339,3 @@ class TestMcpServerCLI:
 
         assert result.exit_code == 0
         assert captured["api_key"] == "env-secret"
-
