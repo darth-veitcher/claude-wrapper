@@ -501,7 +501,7 @@ class TestUnifiedClaudeClient:
                 yield line
 
         stdout_mock = MagicMock()
-        stdout_mock.__aiter__ = lambda self: _aiter_lines()
+        stdout_mock.__aiter__ = lambda: _aiter_lines()
 
         process = AsyncMock()
         process.stdout = stdout_mock
