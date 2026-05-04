@@ -397,6 +397,11 @@ class UnifiedClaudeClient:
                         if block.get("type") != "text":
                             continue
                         text: str = block["text"]
+                        # Skip empty text blocks — Claude CLI occasionally emits
+                        # content_block_start without any delta, and forwarding
+                        # an empty chunk triggers Anthropic 400 errors upstream.
+                        if not text:
+                            continue
                         if text.startswith(last_text):
                             delta = text[len(last_text):]
                             if delta:

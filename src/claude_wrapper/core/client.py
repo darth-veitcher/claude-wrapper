@@ -203,6 +203,11 @@ class ClaudeClient:
                     if block.get("type") != "text":
                         continue
                     text: str = block["text"]
+                    # Skip empty text blocks — Claude CLI occasionally emits
+                    # content_block_start without any delta, and forwarding an
+                    # empty chunk triggers Anthropic 400 errors upstream.
+                    if not text:
+                        continue
                     # Each partial event contains the cumulative text so far;
                     # yield only the delta since the previous event.
                     if text.startswith(last_text):
@@ -211,8 +216,7 @@ class ClaudeClient:
                             yield delta
                     else:
                         # Non-cumulative event — yield the full block
-                        if text:
-                            yield text
+                        yield text
                     last_text = text
 
             await asyncio.wait_for(process.wait(), timeout=self.timeout)

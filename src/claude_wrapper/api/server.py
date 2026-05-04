@@ -120,27 +120,35 @@ async def health() -> dict[str, Any] | JSONResponse:
 @app.get("/v1/models", dependencies=[Depends(verify_api_key)])
 async def list_models() -> ModelList:
     """List available models."""
-    models = [
-        Model(
-            id="opus",
-            created=int(time.time()),
-            owned_by="anthropic",
-            root="opus",
-        ),
-        Model(
-            id="sonnet",
-            created=int(time.time()),
-            owned_by="anthropic",
-            root="sonnet",
-        ),
-        Model(
-            id="haiku",
-            created=int(time.time()),
-            owned_by="anthropic",
-            root="haiku",
-        ),
+    # Short aliases are listed first so existing configurations keep working.
+    # Versioned canonical names follow, matching what Claude Code actually
+    # supports (same set as _AVAILABLE_MODELS in mcp/server.py).
+    _MODEL_IDS: list[tuple[str, str]] = [
+        # (id, root-alias)
+        ("opus",                     "opus"),
+        ("sonnet",                   "sonnet"),
+        ("haiku",                    "haiku"),
+        ("claude-haiku-4-5",          "haiku"),
+        ("claude-haiku-4-5-20251001", "haiku"),
+        ("claude-sonnet-4-0",          "sonnet"),
+        ("claude-sonnet-4-20250514",   "sonnet"),
+        ("claude-sonnet-4-5",          "sonnet"),
+        ("claude-sonnet-4-5-20250929", "sonnet"),
+        ("claude-sonnet-4-6",          "sonnet"),
+        ("claude-opus-4-0",          "opus"),
+        ("claude-opus-4-20250514",   "opus"),
+        ("claude-opus-4-1",          "opus"),
+        ("claude-opus-4-1-20250805", "opus"),
+        ("claude-opus-4-5",          "opus"),
+        ("claude-opus-4-5-20251101", "opus"),
+        ("claude-opus-4-6",          "opus"),
+        ("claude-opus-4-7",          "opus"),
     ]
-
+    now = int(time.time())
+    models = [
+        Model(id=mid, created=now, owned_by="anthropic", root=root)
+        for mid, root in _MODEL_IDS
+    ]
     return ModelList(data=models)
 
 

@@ -224,6 +224,55 @@ class TestClaudeClient:
             assert "test" in result
 
     @pytest.mark.unit
+    async def test_stream_chat_skips_empty_text_blocks(self):
+        """Empty text blocks in stream-json output must not be yielded.
+
+        Claude CLI occasionally opens a content_block_start for text but never
+        sends a delta, producing {"type":"text","text":""}.  Forwarding an
+        empty chunk can trigger Anthropic 400 errors, and resetting last_text
+        to "" would cause the *next* real block to be re-emitted in full.
+        """
+        from unittest.mock import MagicMock
+
+        with (
+            patch("shutil.which", return_value="/usr/bin/claude"),
+            patch("asyncio.create_subprocess_exec") as mock_proc,
+        ):
+            lines = [
+                # Empty block emitted before the real text starts
+                b'{"type":"assistant","message":{"content":[{"type":"text","text":""}]}}\n',
+                b'{"type":"assistant","message":{"content":[{"type":"text","text":"Hi"}]}}\n',
+                # Another empty block mid-stream (should not reset last_text)
+                b'{"type":"assistant","message":{"content":[{"type":"text","text":""}]}}\n',
+                b'{"type":"assistant","message":{"content":[{"type":"text","text":"Hi there"}]}}\n',
+                b'{"type":"result","subtype":"success","result":"Hi there"}\n',
+            ]
+
+            async def _aiter_lines():
+                for line in lines:
+                    yield line
+
+            stdout_mock = MagicMock()
+            stdout_mock.__aiter__ = lambda self: _aiter_lines()
+
+            process = AsyncMock()
+            process.stdout = stdout_mock
+            process.wait = AsyncMock(return_value=0)
+            mock_proc.return_value = process
+
+            client = ClaudeClient()
+            client._claude_available = True
+
+            chunks = []
+            async for chunk in client.stream_chat("Test"):
+                chunks.append(chunk)
+
+            # No empty string chunks must have been yielded
+            assert all(chunk != "" for chunk in chunks), "Empty chunk was yielded"
+            # The incremental deltas should reconstruct the full text
+            assert "".join(chunks) == "Hi there"
+
+    @pytest.mark.unit
     async def test_stream_chat_fallback(self):
         """Test streaming chat falls back to word-by-word on subprocess error."""
         with patch("shutil.which", return_value="/usr/bin/claude"):

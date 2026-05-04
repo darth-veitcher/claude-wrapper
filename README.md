@@ -312,6 +312,20 @@ Because `claude-wrapper` exposes an OpenAI-compatible REST API, you can use it a
 custom provider inside OpenCode to drive Claude via your existing Claude Code subscription
 (no separate Anthropic API key required).
 
+> **💡 Tip — native plugin alternative:** If you are using OpenCode locally and do not need
+> a shared or remote endpoint, the
+> [`@khalilgharbaoui/opencode-claude-code-plugin`](https://github.com/khalilgharbaoui/opencode-claude-code-plugin)
+> community plugin is a simpler option. It loads directly inside OpenCode (one
+> `"plugin"` line in `opencode.json`), keeps a long-lived `claude` subprocess so native
+> session state is preserved across turns, and adds zero HTTP-server overhead.
+>
+> **Use `claude-wrapper` when you need:**
+> - A shared/remote endpoint that multiple clients or machines can hit
+> - An OpenAI-compatible API usable by non-OpenCode clients (e.g. VS Code extensions,
+>   Python scripts, curl)
+> - API-key protection for multi-user deployments
+> - A stable HTTP proxy for tools that cannot load TypeScript OpenCode plugins
+
 ### 1 — Start the claude-wrapper server
 
 ```bash
@@ -351,14 +365,23 @@ Add a `provider` block to your `opencode.json` (project-level) or
         "apiKey": "not-needed"
       },
       "models": {
+        "claude-sonnet-4-6": {
+          "name": "Claude Sonnet 4.6"
+        },
+        "claude-opus-4-7": {
+          "name": "Claude Opus 4.7"
+        },
+        "claude-haiku-4-5": {
+          "name": "Claude Haiku 4.5"
+        },
         "sonnet": {
-          "name": "Claude Sonnet (latest)"
+          "name": "Claude Sonnet (alias)"
         },
         "opus": {
-          "name": "Claude Opus (latest)"
+          "name": "Claude Opus (alias)"
         },
         "haiku": {
-          "name": "Claude Haiku (latest)"
+          "name": "Claude Haiku (alias)"
         }
       }
     }
@@ -369,11 +392,14 @@ Add a `provider` block to your `opencode.json` (project-level) or
 > **Note:** The `apiKey` field is required by the AI SDK schema but is not validated by the
 > `claude-wrapper` server unless you start it with `CLAUDE_WRAPPER_API_KEY=<secret>`.
 > In that case set `"apiKey": "<secret>"` in the config above.
+>
+> The model IDs are passed verbatim to `claude --model`, so any identifier that the
+> Claude Code CLI accepts (short alias or full versioned name) works.
 
 ### 3 — Select the model in OpenCode
 
 Run `/models` inside OpenCode and pick any model under the **Claude (via claude-wrapper)**
-provider, for example `claude-wrapper/sonnet`.
+provider, for example `claude-wrapper/claude-sonnet-4-6`.
 
 ### Optional — protect the endpoint with an API key
 
