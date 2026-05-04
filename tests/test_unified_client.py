@@ -487,22 +487,40 @@ class TestUnifiedClaudeClient:
         with pytest.raises(RecursionError, match="Maximum recursion depth"):
             await client.chat("Hello")
 
-    @patch.object(UnifiedClaudeClient, "_execute_claude_cli")
-    async def test_stream_chat_claude_cli_mode(self, mock_execute):
-        """Test stream chat in Claude CLI mode."""
-        mock_execute.return_value = "Word1 Word2"
+    async def test_stream_chat_claude_cli_mode(self):
+        """Test stream chat in Claude CLI mode using stream-json subprocess output."""
+        lines = [
+            b'{"type":"system","subtype":"init","session_id":"s1"}\n',
+            b'{"type":"assistant","message":{"content":[{"type":"text","text":"Word1"}]}}\n',
+            b'{"type":"assistant","message":{"content":[{"type":"text","text":"Word1 Word2"}]}}\n',
+            b'{"type":"result","subtype":"success","result":"Word1 Word2"}\n',
+        ]
 
-        client = UnifiedClaudeClient(mode=ClientMode.CLAUDE_CLI)
+        async def _aiter_lines():
+            for line in lines:
+                yield line
 
-        # Reset context
-        _recursion_depth.set(0)
-        _call_stack.set([])
+        stdout_mock = MagicMock()
+        stdout_mock.__aiter__ = lambda self: _aiter_lines()
 
-        chunks = []
-        async for chunk in client.stream_chat("Hello"):
-            chunks.append(chunk)
+        process = AsyncMock()
+        process.stdout = stdout_mock
+        process.wait = AsyncMock(return_value=0)
 
-        assert chunks == ["Word1", " ", "Word2"]
+        with patch("asyncio.create_subprocess_exec", return_value=process):
+            client = UnifiedClaudeClient(mode=ClientMode.CLAUDE_CLI)
+
+            # Reset context
+            _recursion_depth.set(0)
+            _call_stack.set([])
+
+            chunks = []
+            async for chunk in client.stream_chat("Hello"):
+                chunks.append(chunk)
+
+        result = "".join(chunks)
+        assert "Word1" in result
+        assert "Word2" in result
 
     @patch.object(UnifiedClaudeClient, "_execute_claude_wrapper_cli")
     async def test_stream_chat_wrapper_cli_mode(self, mock_execute):

@@ -181,18 +181,113 @@ class TestClaudeClient:
                 await client.chat("Hello")
 
     @pytest.mark.unit
-    async def test_stream_chat(self):
-        """Test streaming chat (simulated)."""
+    async def test_stream_chat_real_streaming(self):
+        """Test streaming chat via stream-json output format."""
+        from unittest.mock import MagicMock
+
+        with (
+            patch("shutil.which", return_value="/usr/bin/claude"),
+            patch("asyncio.create_subprocess_exec") as mock_proc,
+        ):
+            # Build fake NDJSON lines the process would emit
+            lines = [
+                b'{"type":"system","subtype":"init","session_id":"s1"}\n',
+                b'{"type":"assistant","message":{"content":[{"type":"text","text":"Hello"}]}}\n',
+                b'{"type":"assistant","message":{"content":[{"type":"text","text":"Hello world"}]}}\n',
+                b'{"type":"assistant","message":{"content":[{"type":"text","text":"Hello world test"}]}}\n',
+                b'{"type":"result","subtype":"success","result":"Hello world test"}\n',
+            ]
+
+            # AsyncIterator over the fake lines
+            async def _aiter_lines():
+                for line in lines:
+                    yield line
+
+            stdout_mock = MagicMock()
+            stdout_mock.__aiter__ = lambda self: _aiter_lines()
+
+            process = AsyncMock()
+            process.stdout = stdout_mock
+            process.wait = AsyncMock(return_value=0)
+            mock_proc.return_value = process
+
+            client = ClaudeClient()
+            client._claude_available = True
+
+            chunks = []
+            async for chunk in client.stream_chat("Test"):
+                chunks.append(chunk)
+
+            result = "".join(chunks)
+            assert "Hello" in result
+            assert "world" in result
+            assert "test" in result
+
+    @pytest.mark.unit
+    async def test_stream_chat_skips_empty_text_blocks(self):
+        """Empty text blocks in stream-json output must not be yielded.
+
+        Claude CLI occasionally opens a content_block_start for text but never
+        sends a delta, producing {"type":"text","text":""}.  Forwarding an
+        empty chunk can trigger Anthropic 400 errors, and resetting last_text
+        to "" would cause the *next* real block to be re-emitted in full.
+        """
+        from unittest.mock import MagicMock
+
+        with (
+            patch("shutil.which", return_value="/usr/bin/claude"),
+            patch("asyncio.create_subprocess_exec") as mock_proc,
+        ):
+            lines = [
+                # Empty block emitted before the real text starts
+                b'{"type":"assistant","message":{"content":[{"type":"text","text":""}]}}\n',
+                b'{"type":"assistant","message":{"content":[{"type":"text","text":"Hi"}]}}\n',
+                # Another empty block mid-stream (should not reset last_text)
+                b'{"type":"assistant","message":{"content":[{"type":"text","text":""}]}}\n',
+                b'{"type":"assistant","message":{"content":[{"type":"text","text":"Hi there"}]}}\n',
+                b'{"type":"result","subtype":"success","result":"Hi there"}\n',
+            ]
+
+            async def _aiter_lines():
+                for line in lines:
+                    yield line
+
+            stdout_mock = MagicMock()
+            stdout_mock.__aiter__ = lambda self: _aiter_lines()
+
+            process = AsyncMock()
+            process.stdout = stdout_mock
+            process.wait = AsyncMock(return_value=0)
+            mock_proc.return_value = process
+
+            client = ClaudeClient()
+            client._claude_available = True
+
+            chunks = []
+            async for chunk in client.stream_chat("Test"):
+                chunks.append(chunk)
+
+            # No empty string chunks must have been yielded
+            assert all(chunk != "" for chunk in chunks), "Empty chunk was yielded"
+            # The incremental deltas should reconstruct the full text
+            assert "".join(chunks) == "Hi there"
+
+    @pytest.mark.unit
+    async def test_stream_chat_fallback(self):
+        """Test streaming chat falls back to word-by-word on subprocess error."""
         with patch("shutil.which", return_value="/usr/bin/claude"):
             client = ClaudeClient()
+            client._claude_available = True
 
-            # Mock the regular chat method
-            with patch.object(client, "chat", return_value="Hello world test"):
+            # Make subprocess creation raise so the fallback path is exercised
+            with (
+                patch("asyncio.create_subprocess_exec", side_effect=OSError("no binary")),
+                patch.object(client, "chat", return_value="Hello world test"),
+            ):
                 chunks = []
                 async for chunk in client.stream_chat("Test"):
                     chunks.append(chunk)
 
-                # Should break response into words
                 result = "".join(chunks)
                 assert "Hello" in result
                 assert "world" in result

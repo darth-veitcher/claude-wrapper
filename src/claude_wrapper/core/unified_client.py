@@ -2,6 +2,7 @@
 
 import asyncio
 import contextvars
+import json
 import shutil
 import threading
 from collections.abc import AsyncIterator
@@ -362,14 +363,68 @@ class UnifiedClaudeClient:
         self._check_recursion_depth("stream_chat")
 
         if self.mode == ClientMode.CLAUDE_CLI:
-            # Simulate streaming with word-by-word output
-            response = await self._execute_claude_cli(["-p", message])
-            words = response.split()
-            for i, word in enumerate(words):
-                if i > 0:
-                    yield " "
-                yield word
-                await asyncio.sleep(0.01)
+            # Use stream-json format for real token-by-token streaming.
+            self._check_subprocess_recursion("claude_cli_stream")
+            try:
+                process = await asyncio.create_subprocess_exec(
+                    self.claude_path,
+                    "-p",
+                    message,
+                    "--output-format",
+                    "stream-json",
+                    "--verbose",
+                    "--include-partial-messages",
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                )
+
+                assert process.stdout is not None
+                last_text = ""
+
+                async for raw_line in process.stdout:
+                    line = raw_line.decode().strip()
+                    if not line:
+                        continue
+                    try:
+                        event = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+
+                    if event.get("type") != "assistant":
+                        continue
+
+                    for block in event.get("message", {}).get("content", []):
+                        if block.get("type") != "text":
+                            continue
+                        text: str = block["text"]
+                        # Skip empty text blocks — Claude CLI occasionally emits
+                        # content_block_start without any delta, and forwarding
+                        # an empty chunk triggers Anthropic 400 errors upstream.
+                        if not text:
+                            continue
+                        if text.startswith(last_text):
+                            delta = text[len(last_text):]
+                            if delta:
+                                yield delta
+                        else:
+                            if text:
+                                yield text
+                        last_text = text
+
+                await asyncio.wait_for(process.wait(), timeout=self.timeout)
+            except ClaudeWrapperError:
+                raise
+            except Exception:
+                # Fallback: fetch the full response and emit word-by-word
+                response = await self._execute_claude_cli(["-p", message])
+                words = response.split()
+                for i, word in enumerate(words):
+                    if i > 0:
+                        yield " "
+                    yield word
+                    await asyncio.sleep(0.01)
+            finally:
+                self._cleanup_subprocess_recursion()
 
         elif self.mode == ClientMode.CLAUDE_WRAPPER_CLI:
             # For CLI mode, we'll fall back to regular chat and simulate streaming

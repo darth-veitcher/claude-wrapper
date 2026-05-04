@@ -44,11 +44,15 @@ class TestAPIEndpoints:
             data = response.json()
             assert "data" in data
             assert len(data["data"]) > 0
-            # Check for our simplified model names
             model_ids = [model["id"] for model in data["data"]]
+            # Short aliases must still be present for backwards-compat
             assert "opus" in model_ids
             assert "sonnet" in model_ids
             assert "haiku" in model_ids
+            # Full versioned names must also be present
+            assert "claude-sonnet-4-6" in model_ids
+            assert "claude-opus-4-7" in model_ids
+            assert "claude-haiku-4-5" in model_ids
 
     async def test_chat_completions_endpoint(self):
         """Test chat completions endpoint."""

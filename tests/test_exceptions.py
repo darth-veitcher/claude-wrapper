@@ -33,7 +33,7 @@ class TestExceptions:
 
         assert isinstance(error, ClaudeWrapperError)
         assert "Claude CLI not found at '/custom/path'" in str(error)
-        assert "Please install claude-cli" in str(error)
+        assert "Please install claude-code" in str(error)
 
         # Test default path
         error = ClaudeNotFoundError()
@@ -111,7 +111,7 @@ class TestExceptions:
             (ClaudeExecutionError("exec failed"), "exec failed"),
             (
                 ClaudeNotFoundError("custom"),
-                "Claude CLI not found at 'custom'. Please install claude-cli.",
+                "Claude CLI not found at 'custom'. Please install claude-code.",
             ),
         ]
 

@@ -149,9 +149,18 @@ class TestMcpListModelsTool:
         assert isinstance(result, list)
         assert len(result) > 0
         ids = [m["id"] for m in result]
+        # Short aliases must still be present for backwards-compat
         assert "opus" in ids
         assert "sonnet" in ids
         assert "haiku" in ids
+        # Full versioned names must also be present
+        assert "claude-sonnet-4-6" in ids
+        assert "claude-opus-4-7" in ids
+        assert "claude-haiku-4-5" in ids
+        # Full model entries include context and output limit metadata
+        sonnet46 = next(m for m in result if m["id"] == "claude-sonnet-4-6")
+        assert sonnet46["context_window"] == 1_000_000
+        assert sonnet46["max_output_tokens"] == 16_384
 
 
 @pytest.mark.unit
