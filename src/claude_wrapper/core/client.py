@@ -1,6 +1,7 @@
 """Simple async client for Claude CLI wrapper."""
 
 import asyncio
+import json
 import shutil
 from collections.abc import AsyncIterator
 from typing import Any
@@ -155,25 +156,78 @@ class ClaudeClient:
         return response.strip()
 
     async def stream_chat(self, message: str) -> AsyncIterator[str]:
-        """Stream a response from Claude.
+        """Stream a response from Claude using stream-json output format.
+
+        Uses ``--output-format stream-json --verbose --include-partial-messages``
+        for true token-by-token streaming.  Falls back to simulating streaming
+        word-by-word (with a short delay) if the subprocess approach fails.
 
         Args:
             message: The message to send
 
         Yields:
-            Response chunks as they arrive
+            Response text chunks as they arrive
         """
-        # Note: Claude CLI doesn't support true streaming, so we simulate it
-        # by yielding the response in chunks
-        response = await self.chat(message)
+        if self._claude_available is None:
+            await self.check_auth()
 
-        # Simulate streaming by yielding words
-        words = response.split()
-        for i, word in enumerate(words):
-            if i > 0:
-                yield " "
-            yield word
-            await asyncio.sleep(0.01)  # Small delay to simulate streaming
+        try:
+            process = await asyncio.create_subprocess_exec(
+                self.claude_path,
+                "-p",
+                message,
+                "--output-format",
+                "stream-json",
+                "--verbose",
+                "--include-partial-messages",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+
+            assert process.stdout is not None
+            last_text = ""
+
+            async for raw_line in process.stdout:
+                line = raw_line.decode().strip()
+                if not line:
+                    continue
+                try:
+                    event = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+
+                if event.get("type") != "assistant":
+                    continue
+
+                for block in event.get("message", {}).get("content", []):
+                    if block.get("type") != "text":
+                        continue
+                    text: str = block["text"]
+                    # Each partial event contains the cumulative text so far;
+                    # yield only the delta since the previous event.
+                    if text.startswith(last_text):
+                        delta = text[len(last_text):]
+                        if delta:
+                            yield delta
+                    else:
+                        # Non-cumulative event — yield the full block
+                        if text:
+                            yield text
+                    last_text = text
+
+            await asyncio.wait_for(process.wait(), timeout=self.timeout)
+
+        except ClaudeWrapperError:
+            raise
+        except Exception:
+            # Fallback: fetch the full response and emit word-by-word
+            response = await self.chat(message)
+            words = response.split()
+            for i, word in enumerate(words):
+                if i > 0:
+                    yield " "
+                yield word
+                await asyncio.sleep(0.01)
 
     async def complete(
         self,

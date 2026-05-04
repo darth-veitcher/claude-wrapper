@@ -13,7 +13,7 @@ class ClaudeNotFoundError(ClaudeWrapperError):
     """Raised when Claude CLI is not found."""
 
     def __init__(self, path: str = "claude"):
-        super().__init__(f"Claude CLI not found at '{path}'. Please install claude-cli.")
+        super().__init__(f"Claude CLI not found at '{path}'. Please install claude-code.")
 
 
 class ClaudeAuthError(ClaudeWrapperError):

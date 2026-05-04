@@ -16,14 +16,12 @@ A simple Python wrapper for Claude CLI that seamlessly integrates Claude's capab
 
 ### Prerequisites
 
-1. **Install Claude CLI** (if not already installed):
+1. **Install Claude Code** (if not already installed):
 ```bash
-npm install -g @anthropic-ai/claude-cli
-# OR
-brew install claude
+npm install -g @anthropic-ai/claude-code
 
 # Authenticate once
-claude login
+claude auth login
 ```
 
 2. **Install Claude Wrapper**:
@@ -125,7 +123,7 @@ async def robust_chat():
         print(f"Response: {response}")
 
     except ClaudeAuthError:
-        print("Please run 'claude login' first")
+        print("Please run 'claude auth login' first")
     except ClaudeTimeoutError:
         print("Request timed out, try increasing timeout")
 
@@ -240,9 +238,9 @@ pytest
 
 The wrapper works with Claude CLI's supported options:
 
-- ✅ Uses `--print` flag for non-interactive responses
-- ✅ Supports `--output-format stream-json` for streaming
-- ⚠️ Parameters like `max_tokens`, `temperature`, `system_prompt` are not passed to CLI (Claude CLI doesn't support them yet)
+- ✅ Uses `--print` (`-p`) flag for non-interactive responses
+- ✅ Supports `--output-format stream-json --verbose --include-partial-messages` for real streaming
+- ⚠️ Parameters like `max_tokens`, `temperature`, `system_prompt` are not passed to CLI (Claude Code doesn't support them yet)
 - ⚠️ Token counting is estimated, not exact
 
 ## 🏗️ Architecture
@@ -305,6 +303,103 @@ class ClaudeClient:
 **count_tokens(text)**
 - Estimate token count
 - Returns: `Dict[str, int]` with `tokens` and `words`
+
+## 🔗 OpenCode Integration
+
+[OpenCode](https://opencode.ai) is an open-source AI coding agent that supports any
+[OpenAI-compatible provider](https://opencode.ai/docs/providers/#custom-provider).
+Because `claude-wrapper` exposes an OpenAI-compatible REST API, you can use it as a
+custom provider inside OpenCode to drive Claude via your existing Claude Code subscription
+(no separate Anthropic API key required).
+
+### 1 — Start the claude-wrapper server
+
+```bash
+# requires @anthropic-ai/claude-code to be installed and authenticated
+# (see Prerequisites above)
+
+# Using uvx (no installation needed)
+uvx claude-wrapper server --port 8000
+
+# Or if installed
+claude-wrapper server --port 8000
+```
+
+The server listens at `http://localhost:8000` and exposes:
+
+| Endpoint | Description |
+|---|---|
+| `GET /v1/models` | List available Claude model aliases |
+| `POST /v1/chat/completions` | OpenAI-compatible chat completions |
+| `POST /v1/completions` | OpenAI-compatible completions |
+| `GET /health` | Health / auth check |
+
+### 2 — Configure OpenCode
+
+Add a `provider` block to your `opencode.json` (project-level) or
+`~/.config/opencode/opencode.json` (global):
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "claude-wrapper": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Claude (via claude-wrapper)",
+      "options": {
+        "baseURL": "http://localhost:8000/v1",
+        "apiKey": "not-needed"
+      },
+      "models": {
+        "sonnet": {
+          "name": "Claude Sonnet (latest)"
+        },
+        "opus": {
+          "name": "Claude Opus (latest)"
+        },
+        "haiku": {
+          "name": "Claude Haiku (latest)"
+        }
+      }
+    }
+  }
+}
+```
+
+> **Note:** The `apiKey` field is required by the AI SDK schema but is not validated by the
+> `claude-wrapper` server unless you start it with `CLAUDE_WRAPPER_API_KEY=<secret>`.
+> In that case set `"apiKey": "<secret>"` in the config above.
+
+### 3 — Select the model in OpenCode
+
+Run `/models` inside OpenCode and pick any model under the **Claude (via claude-wrapper)**
+provider, for example `claude-wrapper/sonnet`.
+
+### Optional — protect the endpoint with an API key
+
+If the wrapper server is reachable over a network, add authentication:
+
+```bash
+CLAUDE_WRAPPER_API_KEY=my-secret claude-wrapper server --port 8000
+```
+
+Then set the same key in `opencode.json`:
+
+```json
+{
+  "provider": {
+    "claude-wrapper": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Claude (via claude-wrapper)",
+      "options": {
+        "baseURL": "http://localhost:8000/v1",
+        "apiKey": "my-secret"
+      },
+      "models": { "sonnet": { "name": "Claude Sonnet" } }
+    }
+  }
+}
+```
 
 ## 🔧 CLI Commands
 
@@ -394,7 +489,7 @@ export CLAUDE_WRAPPER_CLAUDE_PATH=/path/to/claude
 ### Authentication Issues
 ```bash
 # Re-authenticate
-claude login
+claude auth login
 ```
 
 ### Timeout Errors
